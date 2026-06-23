@@ -1,0 +1,33 @@
+type User @table {
+  displayName: String!
+  email: String
+  photoUrl: String
+  createdAt: Timestamp!
+}
+
+type ActivityType @table {
+  user: User!
+  name: String!
+  description: String
+  createdAt: Timestamp!
+}
+
+type ActivityLog @table {
+  user: User!
+  activityType: ActivityType!
+  activityDate: Date!
+  durationMinutes: Int!
+  notes: String
+  createdAt: Timestamp!
+}
+
+type Goal @table {
+  user: User!
+  activityType: ActivityType!
+  targetValue: Float!
+  targetUnit: String! # e.g., "minutes", "kilometers", "count"
+  frequency: String! # e.g., "daily", "weekly", "monthly"
+  startDate: Date!
+  endDate: Date
+  createdAt: Timestamp!
+}

@@ -1,0 +1,4811 @@
+import 'package:edumanage/features/admin/presentation/pages/salary_module.dart';
+//import 'package:edumanage/features/admin/presentation/pages/screens/attendance_dashbaord.dart';
+import 'package:edumanage/features/admin/presentation/pages/setting_module.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/extensions/list_extensions.dart';
+import '../../../auth/presentation/pages/login_page.dart';
+import 'package:edumanage/features/admin/presentation/pages/exam_results_module.dart';
+import 'package:edumanage/features/admin/presentation/pages/student_module.dart';
+
+import 'attendance_module.dart';
+import 'fee_module.dart';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎨 ANIMATION & MOUSE EFFECT WIDGETS — purely visual, zero logic change
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎨 WINDOWS 11 FILE EXPLORER — GLOBAL COLORS
+// ═══════════════════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎨 WINDOWS 11 FILE EXPLORER — STATIC COLORS CLASS
+// ═══════════════════════════════════════════════════════════════════════════
+class Win11Colors {
+  static const Color bg           = Color(0xFF1A1A1A);
+  static const Color hover        = Color(0xFF2C2C2C);
+  static const Color active       = Color(0xFF2C2C2C);
+  static const Color border       = Color(0xFF3A3A3A);
+  static const Color text         = Color(0xFFD4D4D4);
+  static const Color textActive   = Color(0xFFFFFFFF);
+  static const Color textMuted    = Color(0xFF999999);
+}
+
+/// Hover scale + glow border card
+class _HoverCard extends StatefulWidget {
+  final Widget child;
+  final double scaleUp;
+  final Color? glowColor;
+  final BorderRadius? borderRadius;
+  final bool enableGlow;
+
+  const _HoverCard({
+    required this.child,
+    this.scaleUp = 1.025,
+    this.glowColor,
+    this.borderRadius,
+    this.enableGlow = true,
+  });
+
+  @override
+  State<_HoverCard> createState() => _HoverCardState();
+}
+
+class _HoverCardState extends State<_HoverCard>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+    _scale = Tween<double>(begin: 1.0, end: widget.scaleUp).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        _ctrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovered = false);
+        _ctrl.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: widget.enableGlow && _hovered
+                ? BoxDecoration(
+              borderRadius: widget.borderRadius ??
+                  BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: (widget.glowColor ?? const Color(0xFF3B82F6))
+                      .withOpacity(0.28),
+                  blurRadius: 22,
+                  spreadRadius: 1,
+                ),
+              ],
+            )
+                : const BoxDecoration(),
+            child: child,
+          ),
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Pulse ring animation (for notification badge, status dot)
+class _PulseWidget extends StatefulWidget {
+  final Widget child;
+  final Color color;
+  const _PulseWidget({required this.child, required this.color});
+
+  @override
+  State<_PulseWidget> createState() => _PulseWidgetState();
+}
+
+class _PulseWidgetState extends State<_PulseWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+    _scale = Tween<double>(begin: 1.0, end: 2.2).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+    _opacity = Tween<double>(begin: 0.6, end: 0.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, _) => Transform.scale(
+            scale: _scale.value,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.color.withOpacity(_opacity.value),
+              ),
+            ),
+          ),
+        ),
+        widget.child,
+      ],
+    );
+  }
+}
+
+/// Count-up animated number
+class _AnimatedCounter extends StatefulWidget {
+  final int value;
+  final TextStyle style;
+  const _AnimatedCounter({required this.value, required this.style});
+
+  @override
+  State<_AnimatedCounter> createState() => _AnimatedCounterState();
+}
+
+class _AnimatedCounterState extends State<_AnimatedCounter>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+  int _prev = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _anim = Tween<double>(begin: 0, end: widget.value.toDouble()).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
+    _ctrl.forward();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedCounter old) {
+    super.didUpdateWidget(old);
+    if (old.value != widget.value) {
+      _prev = old.value;
+      _anim = Tween<double>(
+          begin: _prev.toDouble(), end: widget.value.toDouble())
+          .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      _ctrl
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) =>
+          Text(_anim.value.toInt().toString(), style: widget.style),
+    );
+  }
+}
+
+/// Staggered fade+slide-up item for lists
+class _StaggeredItem extends StatefulWidget {
+  final Widget child;
+  final int index;
+  const _StaggeredItem({required this.child, required this.index});
+
+  @override
+  State<_StaggeredItem> createState() => _StaggeredItemState();
+}
+
+class _StaggeredItemState extends State<_StaggeredItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _opacity;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    _opacity =
+        Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
+        ));
+    _slide =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+        );
+
+    Future.delayed(Duration(milliseconds: widget.index * 60), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+/// Hover action button (scale + color lift)
+class _HoverIconButton extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+  const _HoverIconButton(
+      {required this.icon, required this.color, required this.onPressed});
+
+  @override
+  State<_HoverIconButton> createState() => _HoverIconButtonState();
+}
+
+class _HoverIconButtonState extends State<_HoverIconButton>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 130));
+    _scale = Tween<double>(begin: 1.0, end: 1.12)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        _ctrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovered = false);
+        _ctrl.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 130),
+          decoration: BoxDecoration(
+            color: widget.color.withOpacity(_hovered ? 0.2 : 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: widget.color.withOpacity(_hovered ? 0.5 : 0.2)),
+            boxShadow: _hovered
+                ? [
+              BoxShadow(
+                  color: widget.color.withOpacity(0.25),
+                  blurRadius: 10)
+            ]
+                : [],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onPressed,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(widget.icon, color: widget.color, size: 18),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Animated gradient border shimmer on hover for chart/info cards
+class _GlowBorderCard extends StatefulWidget {
+  final Widget child;
+  final Color baseColor;
+  const _GlowBorderCard({required this.child, required this.baseColor});
+
+  @override
+  State<_GlowBorderCard> createState() => _GlowBorderCardState();
+}
+
+class _GlowBorderCardState extends State<_GlowBorderCard>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  late AnimationController _ctrl;
+  late Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 220));
+    _glow = Tween<double>(begin: 0, end: 1)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        _ctrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovered = false);
+        _ctrl.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _glow,
+        builder: (_, child) => AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: widget.baseColor.withOpacity(0.18 * _glow.value),
+                blurRadius: 24 * _glow.value,
+                spreadRadius: 1,
+              ),
+            ],
+            border: Border.all(
+              color: widget.baseColor
+                  .withOpacity(0.12 + 0.28 * _glow.value),
+              width: 1.5,
+            ),
+          ),
+          child: child,
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN DASHBOARD — all original code below, animations woven in
+// ═══════════════════════════════════════════════════════════════════════════
+
+class AdminDashboardPage extends StatefulWidget {
+  final String schoolId;
+  final String schoolName;
+  final String? adminName;
+
+  const AdminDashboardPage({
+    super.key,
+    required this.schoolId,
+    required this.schoolName,
+    this.adminName,
+  });
+
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage>
+    with TickerProviderStateMixin {
+
+  // Add this map for section expansion state
+  final Map<String, bool> _expandedSections = {
+    'main': true,
+    'academic': true,
+    'examination': true,
+    'finance': true,
+    'communication': true,
+    'analytics': true,
+    'system': true,
+  };
+
+  String selectedMenu = "Dashboard";
+  bool isSidebarOpen = false;
+
+  // Animation controllers
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  // Search & filter state
+  String searchQuery = "";
+  String? selectedFilter;
+  String? selectedClassFilter;
+
+  // Pagination
+  int currentPage = 1;
+  final int itemsPerPage = 10;
+
+  // ─── NAVY + WHITE + ELECTRIC BLUE PALETTE ─────────────────
+  // ─── DASHBOARD ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 MIDNIGHT SAAS — Layered Depth (Sidebar vs Dashboard)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ─── SIDEBAR — Darkest (background layer) ─────────────────
+  static const Color _sidebarBg        = Color(0xFF0B0D14);   // ← Darkest (was 0F1117)
+  static const Color _sidebarElevated  = Color(0xFF151821);   // Hover state
+  static const Color _sidebarBorder    = Color(0xFF252836);   // Borders
+  static const Color _sidebarText      = Color(0xFF8B92A8);   // Secondary text
+  static const Color _sidebarTextActive = Color(0xFFEEF1F8);  // Primary text
+  static const Color _sidebarMuted     = Color(0xFF5A6072);   // Disabled
+
+  // ─── DASHBOARD — Lighter (content layer) ──────────────────
+  static const Color _bgDark     = Color(0xFF0F1117);   // ← Lighter than sidebar (was same)
+  static const Color _bgCard     = Color(0xFF161922);   // Cards
+  static const Color _bgElevated = Color(0xFF1E212E);   // Elevated surfaces
+  static const Color _border     = Color(0xFF2A2E3B);   // Borders
+  static const Color _borderLight = Color(0xFF353A4A);  // Hover borders
+
+  // ─── TEXT ─────────────────────────────────────────────────
+  static const Color _textPrimary   = Color(0xFFEEF1F8);   // Headings
+  static const Color _textSecondary = Color(0xFF8B92A8);   // Body
+  static const Color _textMuted     = Color(0xFF5A6072);   // Hints
+
+  // ─── ACCENTS (same for both) ──────────────────────────────
+  static const Color _accentIndigo  = Color(0xFF7C8CF0);
+  static const Color _accentEmerald = Color(0xFF3DD68B);
+  static const Color _accentAmber   = Color(0xFFF2A93B);
+  static const Color _accentSky     = Color(0xFF4DBEF7);
+  static const Color _accentRose    = Color(0xFFF2657A);
+  static const Color _accentViolet  = Color(0xFFB084F5);
+  static const Color _accentSlate   = Color(0xFF8B92A8);
+
+  // ─── PRIMARY ──────────────────────────────────────────────
+  static const Color _primary      = Color(0xFF7C8CF0);
+  static const Color _primaryLight = Color(0xFF9AA5F3);
+  static const Color _primaryDark  = Color(0xFF5E6BE8);
+
+
+
+  // ─── FUNCTIONAL ───────────────────────────────────────────
+  static const Color _accentSuccess = Color(0xFF3DD68B);
+  static const Color _accentWarning = Color(0xFFF2A93B);
+  static const Color _accentDanger  = Color(0xFFF2657A);
+  static const Color _accentInfo    = Color(0xFF4DBEF7);
+
+  final List<String> availableClasses = [
+    "1A","1B","1C","2A","2B","2C","3A","3B","3C",
+    "4A","4B","4C","5A","5B","5C","6A","6B","6C",
+    "7A","7B","7C","8A","8B","8C","9A","9B","9C",
+    "10A","10B","10C",
+  ];
+
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📋 SIDEBAR MENU DATA STRUCTURE
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  final Map<String, Color> _sectionAccentColors = {
+    'main':          _accentIndigo,   // Soft Indigo
+    'academic':      _accentEmerald,  // Success Green
+    'examination':   _accentAmber,    // Warning Amber
+    'finance':       _accentSky,      // Trust Blue
+    'communication': _accentRose,     // Warm Pink
+    'analytics':     _accentViolet,   // Deep Violet
+    'system':        _accentSlate,    // Neutral Gray
+  };
+
+  final List<_SidebarSection> _sidebarSections = [
+    _SidebarSection(
+      key: 'main',
+      title: 'Overview',
+      icon: Icons.home_outlined,
+      items: [
+        _SidebarItem(title: 'Dashboard', icon: Icons.dashboard_outlined, activeIcon: Icons.dashboard, route: 'Dashboard'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'academic',
+      title: 'Academic',
+      icon: Icons.school_outlined,
+      items: [
+        _SidebarItem(title: 'Students', icon: Icons.people_outline, activeIcon: Icons.people, route: 'Students', collection: 'students'),
+        _SidebarItem(title: 'Teachers', icon: Icons.person_outline, activeIcon: Icons.person, route: 'Teachers', collection: 'teachers'),
+        _SidebarItem(title: 'Attendance', icon: Icons.fact_check_outlined, activeIcon: Icons.fact_check, route: 'Attendance', collection: 'attendance'),
+        _SidebarItem(title: 'Classes', icon: Icons.class_outlined, activeIcon: Icons.class_, route: 'Classes', collection: 'classes'),
+        _SidebarItem(title: 'Subjects', icon: Icons.menu_book_outlined, activeIcon: Icons.menu_book, route: 'Subjects', collection: 'subjects'),
+        _SidebarItem(title: 'Timetable', icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month, route: 'Timetable', collection: 'timetables'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'examination',
+      title: 'Examination',
+      icon: Icons.quiz_outlined,
+      items: [
+        _SidebarItem(title: 'Exams', icon: Icons.assignment_outlined, activeIcon: Icons.assignment, route: 'Exams', collection: 'exams'),
+        _SidebarItem(title: 'Results', icon: Icons.assessment_outlined, activeIcon: Icons.assessment, route: 'Results', collection: 'results'),
+        _SidebarItem(title: 'Hall Tickets', icon: Icons.confirmation_number_outlined, activeIcon: Icons.confirmation_number, route: 'Hall Tickets', collection: 'hallTickets'),
+        _SidebarItem(title: 'Admit Cards', icon: Icons.badge_outlined, activeIcon: Icons.badge, route: 'Admit Cards', collection: 'admitCards'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'finance',
+      title: 'Finance',
+      icon: Icons.account_balance_outlined,
+      items: [
+        _SidebarItem(title: 'Fees', icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet, route: 'Fees', collection: 'fees'),
+        _SidebarItem(title: 'Salary', icon: Icons.payments_outlined, activeIcon: Icons.payments, route: 'Salary', collection: 'salaryRecords'),
+        _SidebarItem(title: 'Expenses', icon: Icons.receipt_long_outlined, activeIcon: Icons.receipt_long, route: 'Expenses', collection: 'expenses'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'communication',
+      title: 'Communication',
+      icon: Icons.chat_outlined,
+      items: [
+        _SidebarItem(title: 'Announcements', icon: Icons.campaign_outlined, activeIcon: Icons.campaign, route: 'Announcements', collection: 'announcements'),
+        _SidebarItem(title: 'Notices', icon: Icons.notifications_active_outlined, activeIcon: Icons.notifications_active, route: 'Notices', collection: 'notices'),
+        _SidebarItem(title: 'Events', icon: Icons.event_outlined, activeIcon: Icons.event, route: 'Events', collection: 'events'),
+        _SidebarItem(title: 'Messages', icon: Icons.message_outlined, activeIcon: Icons.message, route: 'Messages', collection: 'messages'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'analytics',
+      title: 'Analytics',
+      icon: Icons.insights_outlined,
+      items: [
+        _SidebarItem(title: 'Analytics', icon: Icons.analytics_outlined, activeIcon: Icons.analytics, route: 'Analytics'),
+        _SidebarItem(title: 'Reports', icon: Icons.summarize_outlined, activeIcon: Icons.summarize, route: 'Reports'),
+      ],
+    ),
+    _SidebarSection(
+      key: 'system',
+      title: 'System',
+      icon: Icons.settings_outlined,
+      items: [
+        _SidebarItem(title: 'Settings', icon: Icons.settings_outlined, activeIcon: Icons.settings, route: 'Settings'),
+      ],
+    ),
+  ];
+  String _getCurrentMonthYear() {
+    final now = DateTime.now();
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}";
+  }
+
+  String _getCurrentMonthName() {
+    final now = DateTime.now();
+    final months = ['Jan','Feb','Mar','Apr','May','Jun',
+      'Jul','Aug','Sep','Oct','Nov','Dec'];
+    return "${months[now.month - 1]} ${now.year}";
+  }
+
+  String _formatCurrency(double amount) {
+    if (amount >= 100000) return "${(amount / 100000).toStringAsFixed(2)}L";
+    if (amount >= 1000)   return "${(amount / 1000).toStringAsFixed(1)}K";
+    return amount.toStringAsFixed(0);
+  }
+
+  bool get isDesktop => ScreenUtil().screenWidth > 1200;
+  bool get isTablet  => ScreenUtil().screenWidth > 768 && ScreenUtil().screenWidth <= 1200;
+  bool get isMobile  => ScreenUtil().screenWidth <= 768;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildAnimatedContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.02, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        key: ValueKey<String>(selectedMenu),
+        child: _buildContent(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: _bgDark,
+      appBar: isDesktop ? null : _buildEnhancedAppBar(),
+      body: Row(
+        children: [
+          if (isDesktop)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: isSidebarOpen ? 240.w : 48.w,
+              child: _buildProfessionalSidebar(),
+            ),
+          Expanded(
+            child: Container(
+              margin: EdgeInsets.all(isMobile ? 12.w : 24.w),
+              child: _buildAnimatedContent(),
+            ),
+          ),
+        ],
+      ),
+      drawer: (isMobile || isTablet) ? _buildProfessionalDrawer() : null,
+      bottomNavigationBar: isMobile ? _buildEnhancedMobileBottomNav() : null,
+    );
+  }
+
+  PreferredSizeWidget _buildEnhancedAppBar() {
+    return AppBar(
+      backgroundColor: _bgCard,
+      elevation: 0,
+      leading: (isMobile || isTablet)
+          ? IconButton(
+        icon: Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Icon(Icons.menu, color: _textPrimary, size: 20.sp),
+        ),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+      )
+          : null,
+      title: Row(
+        children: [
+          // 🎨 PULSE on the online indicator dot
+          _PulseWidget(
+            color: _accentSuccess,
+            child: Container(
+              width: 10.w,
+              height: 10.w,
+              decoration: BoxDecoration(
+                color: _accentSuccess,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _accentSuccess.withOpacity(0.4),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.schoolName,
+                  style: TextStyle(
+                    color: _textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: isMobile ? 16.sp : 18.sp,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (widget.adminName != null && !isMobile)
+                  Text(
+                    widget.adminName!.toUpperCase(),
+                    style: TextStyle(
+                      color: _textMuted,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        _buildNotificationBell(),
+        SizedBox(width: 8.w),
+        _buildQuickActionsMenu(),
+        SizedBox(width: 8.w),
+        _buildAdminProfile(),
+        SizedBox(width: 16.w),
+      ],
+    );
+  }
+
+  Widget _buildNotificationBell() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('notifications')
+          .where('read', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+        return Stack(
+          children: [
+            _industrialIconButton(
+              Icons.notifications_outlined,
+              onPressed: () => _showNotificationsPanel(context),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                right: 8.w,
+                top: 8.w,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  duration: const Duration(milliseconds: 300),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  // 🎨 PULSE on notification badge
+                  child: _PulseWidget(
+                    color: _accentDanger,
+                    child: Container(
+                      padding: EdgeInsets.all(4.w),
+                      decoration: BoxDecoration(
+                        color: _accentDanger,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _bgCard, width: 2),
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 18.w,
+                        minHeight: 18.w,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showNotificationsPanel(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: EdgeInsets.only(top: 12.h),
+              width: 40.w,
+              height: 4.h,
+              decoration: BoxDecoration(
+                color: _textMuted.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2.r),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.all(20.w),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Notifications",
+                    style: TextStyle(
+                      color: _textPrimary,
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  _industrialButton("Mark all read", onPressed: () {}, isSecondary: true),
+                ],
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(widget.schoolId)
+                    .collection('notifications')
+                    .orderBy('timestamp', descending: true)
+                    .limit(20)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return _buildShimmerList();
+                  final notifications = snapshot.data!.docs;
+                  if (notifications.isEmpty) {
+                    return _buildEmptyState(
+                      icon: Icons.notifications_none,
+                      title: "No notifications",
+                      subtitle: "You're all caught up!",
+                    );
+                  }
+                  return ListView.builder(
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) =>
+                    // 🎨 STAGGERED notification items
+                    _StaggeredItem(
+                      index: index,
+                      child: _buildNotificationTile(notifications[index]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationTile(DocumentSnapshot notif) {
+    final bool isRead = notif['read'] ?? true;
+    final Timestamp? timestamp = notif['timestamp'];
+    final String timeAgo =
+    timestamp != null ? _getTimeAgo(timestamp.toDate()) : "Unknown";
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: isRead ? _bgElevated : _primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: isRead ? _border : _primary.withOpacity(0.3)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: EdgeInsets.all(10.w),
+          decoration: BoxDecoration(
+            color: _getNotificationColor(notif['type'] ?? 'info').withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Icon(
+            _getNotificationIcon(notif['type'] ?? 'info'),
+            color: _getNotificationColor(notif['type'] ?? 'info'),
+            size: 20.sp,
+          ),
+        ),
+        title: Text(
+          notif['title'] ?? 'Notification',
+          style: TextStyle(
+            color: _textPrimary,
+            fontSize: 14.sp,
+            fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          notif['message'] ?? '',
+          style: TextStyle(color: _textSecondary, fontSize: 12.sp),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Text(timeAgo,
+            style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+        onTap: () => notif.reference.update({'read': true}),
+      ),
+    );
+  }
+
+  Color _getNotificationColor(String type) {
+    switch (type) {
+      case 'success': return _accentSuccess;
+      case 'warning': return _accentWarning;
+      case 'error':   return _accentDanger;
+      default:        return _accentInfo;
+    }
+  }
+
+  IconData _getNotificationIcon(String type) {
+    switch (type) {
+      case 'success': return Icons.check_circle;
+      case 'warning': return Icons.warning;
+      case 'error':   return Icons.error;
+      default:        return Icons.info;
+    }
+  }
+
+  String _getTimeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 1)  return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    if (diff.inDays < 7)     return '${diff.inDays}d ago';
+    return DateFormat('MMM d').format(date);
+  }
+
+  Widget _buildQuickActionsMenu() {
+    return PopupMenuButton<String>(
+      offset: Offset(0, 40.h),
+      color: _bgElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: BorderSide(color: _border),
+      ),
+      child: _industrialIconButton(Icons.add_circle_outline),
+      itemBuilder: (context) => [
+        _buildPopupItem('student',      Icons.person_add,            'Add Student',   _accentInfo),
+        _buildPopupItem('teacher',      Icons.school,                'Add Teacher',   _accentSuccess),
+        _buildPopupItem('announcement', Icons.campaign,              'Announcement',  _accentWarning),
+        _buildPopupItem('Exam',         Icons.assignment_ind_outlined,'ManageExam',   _accentSuccess),
+        _buildPopupItem('event',        Icons.event,                 'Schedule Event',_primary),
+      ],
+      onSelected: (value) {},
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupItem(
+      String value, IconData icon, String label, Color color) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.w),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(icon, color: color, size: 18.sp),
+          ),
+          SizedBox(width: 12.w),
+          Text(label, style: TextStyle(color: _textPrimary, fontSize: 14.sp)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminProfile() {
+    return PopupMenuButton<String>(
+      offset: Offset(0, 40.h),
+      color: _bgElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.r),
+        side: BorderSide(color: _border),
+      ),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: _bgElevated,
+          borderRadius: BorderRadius.circular(10.r),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32.w,
+              height: 32.w,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [_primary, _primaryLight]),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Center(
+                child: Text(
+                  widget.adminName?.substring(0, 1).toUpperCase() ?? "A",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+            ),
+            if (!isMobile) ...[
+              SizedBox(width: 10.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.adminName ?? "Admin",
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600)),
+                  Text("Super Admin",
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                ],
+              ),
+              SizedBox(width: 8.w),
+              Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 18.sp),
+            ],
+          ],
+        ),
+      ),
+      itemBuilder: (context) => [
+        _buildProfileMenuItem('profile',  Icons.person_outline,    'Profile'),
+        _buildProfileMenuItem('settings', Icons.settings_outlined, 'Settings'),
+        _buildProfileMenuItem('billing',  Icons.credit_card,       'Billing'),
+        const PopupMenuDivider(),
+        _buildProfileMenuItem('logout',   Icons.logout,            'Logout', color: _accentDanger),
+      ],
+      onSelected: (value) {
+        if (value == 'logout') _handleLogout();
+      },
+    );
+  }
+
+  PopupMenuItem<String> _buildProfileMenuItem(
+      String value, IconData icon, String label, {Color? color}) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, color: color ?? _textSecondary, size: 20.sp),
+          SizedBox(width: 12.w),
+          Text(label,
+              style: TextStyle(color: color ?? _textPrimary, fontSize: 14.sp)),
+        ],
+      ),
+    );
+  }
+
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 PROFESSIONAL SIDEBAR
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 FLUENT SIDEBAR — matches windows11_fluent_sidebar.html exactly
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+// 🎨 WINDOWS 11 FILE EXPLORER SIDEBAR — matches screenshot exactly
+// ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 WINDOWS 11 FILE EXPLORER SIDEBAR — matches screenshot exactly
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildProfessionalSidebar() {
+    return Container(
+      width: isSidebarOpen ? 240.w : 48.w,
+      color: Win11Colors.bg,
+      child: Column(
+        children: [
+          _buildSidebarBrand(),
+          Divider(color: Win11Colors.border, height: 1, thickness: 1),
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 0),
+              itemCount: _sidebarSections.length,
+              itemBuilder: (context, index) => _buildSidebarSection(
+                _sidebarSections[index], index,
+              ),
+            ),
+          ),
+          _buildSidebarBottomActions(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarBrand() {
+    return Container(
+      padding: isSidebarOpen
+          ? EdgeInsets.fromLTRB(16.w, 12.h, 12.w, 12.h)
+          : EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+      child: isSidebarOpen
+          ? Row(
+        children: [
+          Container(
+            width: 28.w,
+            height: 28.w,
+            decoration: BoxDecoration(
+              color: _primary,
+              borderRadius: BorderRadius.circular(6.r),
+            ),
+            child: Icon(Icons.school, color: Colors.white, size: 16.sp),
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(
+              'EduManage',
+              style: TextStyle(
+                color: Win11Colors.textActive,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          _buildSidebarToggle(),
+        ],
+      )
+          : Center(child: _buildSidebarToggle()),
+    );
+  }
+
+  Widget _buildSidebarToggle() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => isSidebarOpen = !isSidebarOpen),
+        child: Container(
+          width: 24.w,
+          height: 24.w,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(4.r),
+          ),
+          child: AnimatedRotation(
+            turns: isSidebarOpen ? 0 : 0.5,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: Icon(Icons.chevron_left, color: Win11Colors.textMuted, size: 18.sp),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarSection(_SidebarSection section, int sectionIndex) {
+    final accentColor = _sectionAccentColors[section.key] ?? _accentIndigo;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: sectionIndex == _sidebarSections.length - 1 ? 0 : 4.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ─── SECTION HEADER ───
+          if (isSidebarOpen && section.title.isNotEmpty) ...[
+            GestureDetector(
+              onTap: () => setState(() => _expandedSections[section.key] = !(_expandedSections[section.key] ?? true)),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(16.w, 12.h, 12.w, 6.h),
+                child: Row(
+                  children: [
+                    Text(
+                      section.title,
+                      style: TextStyle(
+                        color: Win11Colors.textMuted,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+
+          // ─── SECTION ITEMS ───
+          if (isSidebarOpen) ...[
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: section.items.map((item) {
+                return _buildSidebarMenuItem(
+                  item: item,
+                  sectionColor: accentColor,
+                  isExpanded: true,
+                );
+              }).toList(),
+            ),
+          ] else ...[
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: section.items.map((item) {
+                return _buildSidebarMenuItem(
+                  item: item,
+                  sectionColor: accentColor,
+                  isExpanded: false,
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarMenuItem({
+    required _SidebarItem item,
+    required Color sectionColor,
+    required bool isExpanded,
+  }) {
+    final isActive = selectedMenu == item.route;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: item.collection != null
+          ? FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection(item.collection!)
+          .snapshots()
+          : null,
+      builder: (context, snapshot) {
+        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+
+        return Tooltip(
+          message: isExpanded ? '' : item.title,
+          preferBelow: false,
+          verticalOffset: 24,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => setState(() {
+                selectedMenu = item.route;
+                currentPage = 1;
+              }),
+              child: _Win11NavRow(
+                isActive: isActive,
+                accentColor: sectionColor,
+                isExpanded: isExpanded,
+                child: Row(
+                  mainAxisAlignment:
+                  isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isActive ? item.activeIcon : item.icon,
+                      color: isActive ? sectionColor : Win11Colors.text,
+                      size: isExpanded ? 20.sp : 22.sp,
+                    ),
+                    if (isExpanded) ...[
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: TextStyle(
+                            color: isActive ? Win11Colors.textActive : Win11Colors.text,
+                            fontSize: 12.sp,
+                            fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (item.collection != null && count > 0)
+                        Padding(
+                          padding: EdgeInsets.only(left: 8.w),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              color: Win11Colors.textMuted,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSidebarBottomActions() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Win11Colors.border)),
+      ),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: _handleLogout,
+          child: _Win11HoverRow(
+            isExpanded: isSidebarOpen,
+            child: isSidebarOpen
+                ? Row(
+              children: [
+                Container(
+                  width: 24.w,
+                  height: 24.w,
+                  decoration: BoxDecoration(
+                    color: _primary,
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.adminName?.substring(0, 1).toUpperCase() ?? 'A',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    widget.adminName ?? 'Admin',
+                    style: TextStyle(
+                      color: Win11Colors.text,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(Icons.logout, color: Win11Colors.textMuted, size: 16.sp),
+              ],
+            )
+                : Icon(Icons.logout, color: Win11Colors.textMuted, size: 20.sp),
+          ),
+        ),
+      ),
+    );
+  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 PROFESSIONAL DRAWER (Mobile)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildProfessionalDrawer() {
+    return Drawer(
+      backgroundColor: _bgDark,
+      width: 300.w,
+      child: Column(
+        children: [
+          _buildDrawerHeader(),
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              itemCount: _sidebarSections.length,
+              itemBuilder: (context, index) => _buildDrawerSection(
+                _sidebarSections[index], index,
+              ),
+            ),
+          ),
+          _buildDrawerFooter(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerHeader() {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16.h,
+        bottom: 20.h,
+        left: 20.w,
+        right: 20.w,
+      ),
+      decoration: BoxDecoration(
+        color: _sidebarBg,
+        border: Border(bottom: BorderSide(color: _sidebarBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 40.w,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [_primary, _primaryLight]),
+                      borderRadius: BorderRadius.circular(10.r),
+                    ),
+                    child: Icon(Icons.school, color: Colors.white, size: 22.sp),
+                  ),
+                  SizedBox(width: 12.w),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EduManage',
+                        style: TextStyle(color: _sidebarTextActive, fontSize: 16.sp, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        widget.schoolName,
+                        style: TextStyle(color: _sidebarMuted, fontSize: 11.sp, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: _sidebarElevated,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: _sidebarBorder),
+                  ),
+                  child: Icon(Icons.close, color: _sidebarText, size: 20.sp),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: _sidebarElevated,
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(color: _sidebarBorder),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40.w,
+                  height: 40.w,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [_primary, _primaryLight]),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.adminName?.substring(0, 1).toUpperCase() ?? 'A',
+                      style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.adminName ?? 'Admin',
+                        style: TextStyle(color: _sidebarTextActive, fontSize: 14.sp, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Super Admin',
+                        style: TextStyle(color: _sidebarMuted, fontSize: 11.sp, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 8.w,
+                  height: 8.w,
+                  decoration: BoxDecoration(
+                    color: _accentSuccess,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: _accentSuccess.withOpacity(0.4), blurRadius: 6)],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerSection(_SidebarSection section, int sectionIndex) {
+    final accentColor = _sectionAccentColors[section.key] ?? _accentIndigo;
+    final isExpanded = _expandedSections[section.key] ?? true;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _expandedSections[section.key] = !isExpanded),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 12.h),
+              child: Row(
+                children: [
+                  Icon(section.icon, color: accentColor, size: 16.sp),
+                  SizedBox(width: 10.w),
+                  Text(
+                    section.title.toUpperCase(),
+                    style: TextStyle(
+                      color: _sidebarMuted,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.25 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(Icons.chevron_right, color: _sidebarMuted, size: 16.sp),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            child: isExpanded
+                ? Column(
+              children: section.items.asMap().entries.map((entry) {
+                return _buildDrawerMenuItem(
+                  item: entry.value,
+                  sectionColor: accentColor,
+                  index: entry.key,
+                );
+              }).toList(),
+            )
+                : const SizedBox.shrink(),
+          ),
+          SizedBox(height: 8.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerMenuItem({
+    required _SidebarItem item,
+    required Color sectionColor,
+    required int index,
+  }) {
+    final isActive = selectedMenu == item.route;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: item.collection != null
+          ? FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection(item.collection!)
+          .snapshots()
+          : null,
+      builder: (context, snapshot) {
+        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+
+        return GestureDetector(
+          onTap: () {
+            setState(() => selectedMenu = item.route);
+            Navigator.pop(context);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            margin: EdgeInsets.only(bottom: 2.h),
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: isActive ? sectionColor.withOpacity(0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10.r),
+              border: isActive
+                  ? Border.all(color: sectionColor.withOpacity(0.3), width: 1)
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: isActive
+                      ? BoxDecoration(
+                    color: sectionColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8.r),
+                  )
+                      : null,
+                  child: Icon(
+                    isActive ? item.activeIcon : item.icon,
+                    color: isActive ? sectionColor : _sidebarText,
+                    size: 20.sp,
+                  ),
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: TextStyle(
+                      color: isActive ? _sidebarTextActive : _sidebarText,
+                      fontSize: 14.sp,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (item.collection != null && count > 0)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: isActive ? sectionColor.withOpacity(0.15) : _sidebarElevated,
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                    child: Text(
+                      count > 99 ? '99+' : '$count',
+                      style: TextStyle(
+                        color: isActive ? sectionColor : _sidebarText,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (isActive)
+                  Container(
+                    width: 6.w,
+                    height: 6.w,
+                    margin: EdgeInsets.only(left: 10.w),
+                    decoration: BoxDecoration(
+                      color: sectionColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDrawerFooter() {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: _sidebarBg,
+        border: Border(top: BorderSide(color: _sidebarBorder)),
+      ),
+      child: GestureDetector(
+        onTap: _handleLogout,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          decoration: BoxDecoration(
+            color: _accentDanger.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: _accentDanger.withOpacity(0.2)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout, color: _accentDanger, size: 18.sp),
+              SizedBox(width: 10.w),
+              Text(
+                'Logout',
+                style: TextStyle(color: _accentDanger, fontSize: 14.sp, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  // ─── DASHBOARD CONTENT ───────────────────────────────────
+  Widget _dashboardContent() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDashboardHeader(),
+          SizedBox(height: isMobile ? 16.h : 24.h),
+          _buildEnhancedStatsGrid(),
+          SizedBox(height: isMobile ? 16.h : 24.h),
+          if (isMobile)
+            Column(
+              children: [
+                _buildAttendanceChartCard(),
+                SizedBox(height: 16.h),
+                _buildRevenueChartCard(),
+                SizedBox(height: 16.h),
+                _buildRecentActivityCard(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      _buildAttendanceChartCard(),
+                      SizedBox(height: 24.h),
+                      _buildRecentActivityCard(),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 24.w),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _buildRevenueChartCard(),
+                      SizedBox(height: 24.h),
+                      _buildQuickStatsCard(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboardHeader() {
+    final greeting = _getGreeting();
+    return isMobile
+        ? Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "$greeting, ${widget.adminName?.split(' ').first ?? 'Admin'}!",
+          style: TextStyle(
+              color: _textPrimary,
+              fontSize: 22.sp,
+              fontWeight: FontWeight.w800),
+        ),
+        SizedBox(height: 4.h),
+        Text(
+          "Here's what's happening in your school today.",
+          style:
+          TextStyle(color: _textSecondary, fontSize: 14.sp),
+        ),
+        SizedBox(height: 16.h),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // 🎨 HOVER on header buttons
+              _HoverCard(
+                scaleUp: 1.04,
+                enableGlow: false,
+                child: _industrialButton("Export Report",
+                    icon: Icons.download,
+                    onPressed: () {},
+                    isSecondary: true),
+              ),
+              SizedBox(width: 8.w),
+              _HoverCard(
+                scaleUp: 1.04,
+                glowColor: _primary,
+                enableGlow: true,
+                child: _industrialButton("Schedule Event",
+                    icon: Icons.add, onPressed: () {}),
+              ),
+            ],
+          ),
+        ),
+      ],
+    )
+        : Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "$greeting, ${widget.adminName?.split(' ').first ?? 'Admin'}!",
+              style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 28.sp,
+                  fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              "Here's what's happening in your school today.",
+              style: TextStyle(color: _textSecondary, fontSize: 14.sp),
+            ),
+          ],
+        ),
+        Row(
+          children: [
+            _HoverCard(
+              scaleUp: 1.04,
+              enableGlow: false,
+              child: _industrialButton("Export Report",
+                  icon: Icons.download,
+                  onPressed: () {},
+                  isSecondary: true),
+            ),
+            SizedBox(width: 12.w),
+            _HoverCard(
+              scaleUp: 1.04,
+              glowColor: _primary,
+              enableGlow: true,
+              child: _industrialButton("Schedule Event",
+                  icon: Icons.add, onPressed: () {}),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  Widget _buildAttendanceTodayCard() {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('attendance')
+          .doc(today)
+          .collection('summaries')
+          .snapshots(),
+      builder: (context, snapshot) {
+        int totalStudents = 0;
+        int totalPresent = 0;
+
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          for (final doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            totalStudents += (data['totalStudents'] ?? 0) as int;
+            totalPresent  += (data['present']       ?? 0) as int;
+          }
+        }
+
+        final bool isLoading = !snapshot.hasData;
+        final double pct = totalStudents > 0
+            ? (totalPresent / totalStudents * 100)
+            : 0.0;
+        final String trendStr =
+        totalStudents > 0 ? '${pct.toStringAsFixed(1)}%' : '--';
+        final Color pctColor = pct >= 90
+            ? _accentSuccess
+            : pct >= 75
+            ? _accentWarning
+            : _accentDanger;
+
+        // 🎨 HOVER glow on attendance card
+        return _HoverCard(
+          scaleUp: 1.025,
+          glowColor: _accentWarning,
+          enableGlow: true,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4))
+              ],
+            ),
+            child: isLoading
+                ? _buildStatShimmer()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: _accentWarning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(Icons.fact_check,
+                          color: _accentWarning, size: 24.sp),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 8.w, vertical: 4.h),
+                      decoration: BoxDecoration(
+                        color: pctColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.people_alt_outlined,
+                              color: pctColor, size: 12.sp),
+                          SizedBox(width: 4.w),
+                          Text(trendStr,
+                              style: TextStyle(
+                                  color: pctColor,
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🎨 ANIMATED COUNTER
+                    totalStudents > 0
+                        ? _AnimatedCounter(
+                        value: totalPresent,
+                        style: TextStyle(
+                            color: _textPrimary,
+                            fontSize: 28.sp,
+                            fontWeight: FontWeight.w800))
+                        : Text('--',
+                        style: TextStyle(
+                            color: _textPrimary,
+                            fontSize: 28.sp,
+                            fontWeight: FontWeight.w800)),
+                    SizedBox(height: 4.h),
+                    Text('Attendance Today',
+                        style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEnhancedStatsGrid() {
+    final stats = [
+      {
+        'title': 'Total Students',
+        'collection': 'students',
+        'icon': Icons.people,
+        'color': _primary,
+        'trend': '+12%',
+      },
+      {
+        'title': 'Teachers',
+        'collection': 'teachers',
+        'icon': Icons.school,
+        'color': _accentSuccess,
+        'trend': '+5%',
+      },
+      {
+        'title': 'Fee Collection',
+        'collection': 'fees',
+        'icon': Icons.account_balance_wallet,
+        'color': _accentInfo,
+        'trend': '+8%',
+      },
+    ];
+
+    final attendanceCard = _buildAttendanceTodayCard();
+
+    if (isMobile) {
+      return Column(
+        children: [
+          ...stats.asMap().entries.map((e) => _StaggeredItem(
+            index: e.key,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: _buildEnhancedStatCard(e.value),
+            ),
+          )),
+          _StaggeredItem(
+            index: stats.length,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: attendanceCard,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: isTablet ? 2 : 4,
+      crossAxisSpacing: 20.w,
+      mainAxisSpacing: 20.h,
+      childAspectRatio: 1.5,
+      children: [
+        ...stats.asMap().entries.map((e) =>
+            _StaggeredItem(index: e.key, child: _buildEnhancedStatCard(e.value))),
+        _StaggeredItem(index: stats.length, child: attendanceCard),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedStatCard(Map<String, dynamic> stat) {
+    final collection = stat['collection'] as String;
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection(collection)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+        final isLoading = !snapshot.hasData;
+
+        // 🎨 HOVER glow on stat cards
+        return _HoverCard(
+          scaleUp: 1.025,
+          glowColor: stat['color'] as Color,
+          enableGlow: true,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4))
+              ],
+            ),
+            child: isLoading
+                ? _buildStatShimmer()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: (stat['color'] as Color).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(stat['icon'] as IconData,
+                          color: stat['color'] as Color, size: 24.sp),
+                    ),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 8.w, vertical: 4.h),
+                      decoration: BoxDecoration(
+                        color: _accentSuccess.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_upward,
+                              color: _accentSuccess, size: 12.sp),
+                          SizedBox(width: 4.w),
+                          Text(stat['trend'] as String,
+                              style: TextStyle(
+                                  color: _accentSuccess,
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🎨 ANIMATED COUNTER for stat numbers
+                    _AnimatedCounter(
+                      value: count,
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 28.sp,
+                          fontWeight: FontWeight.w800),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(stat['title'] as String,
+                        style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatShimmer() {
+    return Shimmer.fromColors(
+      baseColor: _bgElevated,
+      highlightColor: _bgCard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                  width: 44.w,
+                  height: 44.w,
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12.r))),
+              Container(
+                  width: 60.w,
+                  height: 24.h,
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20.r))),
+            ],
+          ),
+          Container(
+              width: 80.w,
+              height: 32.h,
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4.r))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceChartCard() {
+    // 🎨 GLOW BORDER on chart card hover
+    return _GlowBorderCard(
+      baseColor: _primary,
+      child: _industrialChartCard(
+        title: "Attendance Analytics",
+        subtitle: "Last 6 days attendance percentage",
+        child: SizedBox(
+          height: isMobile ? 220.h : 280.h,
+          child: _buildRealAttendanceChart(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRealAttendanceChart() {
+    final now = DateTime.now();
+    final last6Days =
+    List.generate(6, (i) => now.subtract(Duration(days: 5 - i)));
+    final dayIds =
+    last6Days.map((d) => DateFormat('yyyy-MM-dd').format(d)).toList();
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchLast6DaysAttendance(dayIds),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Center(
+              child: CircularProgressIndicator(
+                  color: _primary, strokeWidth: 2));
+        }
+
+        final dataPoints = snapshot.data!;
+        final hasData = dataPoints.any((d) => d['total'] > 0);
+        if (!hasData) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bar_chart, color: _textMuted, size: 40.sp),
+                SizedBox(height: 8.h),
+                Text('No attendance data yet',
+                    style: TextStyle(
+                        color: _textSecondary, fontSize: 13.sp)),
+              ],
+            ),
+          );
+        }
+
+        return LineChart(
+          LineChartData(
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: 20,
+              getDrawingHorizontalLine: (value) =>
+                  FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5]),
+            ),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 20,
+                  reservedSize: 40,
+                  getTitlesWidget: (value, meta) => Text('${value.toInt()}%',
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final idx = value.toInt();
+                    if (idx < 0 || idx >= last6Days.length) return const SizedBox();
+                    return Padding(
+                      padding: EdgeInsets.only(top: 8.h),
+                      child: Text(DateFormat('E').format(last6Days[idx]),
+                          style: TextStyle(
+                              color: _textMuted, fontSize: 11.sp)),
+                    );
+                  },
+                ),
+              ),
+              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            borderData: FlBorderData(show: false),
+            minY: 0,
+            maxY: 100,
+            lineBarsData: [
+              LineChartBarData(
+                spots: dataPoints.asMap().entries.map((entry) =>
+                    FlSpot(entry.key.toDouble(),
+                        entry.value['percentage'] as double)).toList(),
+                isCurved: true,
+                curveSmoothness: 0.3,
+                gradient: const LinearGradient(
+                    colors: [_primary, _primaryLight]),
+                barWidth: 3,
+                dotData: FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, index) {
+                    final pct = spot.y;
+                    final color = pct >= 90
+                        ? _accentSuccess
+                        : pct >= 75 ? _accentWarning : _accentDanger;
+                    return FlDotCirclePainter(
+                        radius: 5,
+                        color: _bgCard,
+                        strokeWidth: 2.5,
+                        strokeColor: color);
+                  },
+                ),
+                belowBarData: BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    colors: [
+                      _primary.withOpacity(0.3),
+                      _primary.withOpacity(0.0),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchLast6DaysAttendance(
+      List<String> dayIds) async {
+    final result = <Map<String, dynamic>>[];
+    for (final dateId in dayIds) {
+      final snap = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('attendance')
+          .doc(dateId)
+          .collection('summaries')
+          .get();
+      int total = 0, present = 0;
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        total   += (data['totalStudents'] ?? 0) as int;
+        present += (data['present']       ?? 0) as int;
+      }
+      result.add({
+        'dateId'    : dateId,
+        'total'     : total,
+        'present'   : present,
+        'percentage': total > 0 ? (present / total * 100) : 0.0,
+      });
+    }
+    return result;
+  }
+
+  Widget _buildPeriodSelector(List<String> periods) {
+    return Container(
+      decoration: BoxDecoration(
+          color: _bgElevated, borderRadius: BorderRadius.circular(8.r)),
+      child: Row(
+        children: periods.map((period) {
+          final isSelected = period == 'Week';
+          return GestureDetector(
+            onTap: () {},
+            child: Container(
+              padding:
+              EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: isSelected ? _primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(period,
+                  style: TextStyle(
+                      color: isSelected ? Colors.white : _textSecondary,
+                      fontSize: 12.sp,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500)),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedAttendanceChart() {
+    return LineChart(LineChartData(
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        horizontalInterval: 20,
+        getDrawingHorizontalLine: (value) =>
+            FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5]),
+      ),
+      titlesData: FlTitlesData(
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 20,
+            reservedSize: 40,
+            getTitlesWidget: (value, meta) => Text("${value.toInt()}%",
+                style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+          ),
+        ),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, meta) {
+              final labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+              if (value.toInt() < labels.length) {
+                return Padding(
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: Text(labels[value.toInt()],
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+        ),
+        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      ),
+      borderData: FlBorderData(show: false),
+      lineBarsData: [
+        LineChartBarData(
+          spots: const [
+            FlSpot(0, 92), FlSpot(1, 88), FlSpot(2, 95),
+            FlSpot(3, 90), FlSpot(4, 94), FlSpot(5, 85),
+          ],
+          isCurved: true,
+          curveSmoothness: 0.3,
+          gradient: const LinearGradient(colors: [_primary, _primaryLight]),
+          barWidth: 3,
+          dotData: FlDotData(
+            show: true,
+            getDotPainter: (spot, percent, bar, index) =>
+                FlDotCirclePainter(
+                    radius: 5,
+                    color: _bgCard,
+                    strokeWidth: 2.5,
+                    strokeColor: _primary),
+          ),
+          belowBarData: BarAreaData(
+            show: true,
+            gradient: LinearGradient(
+              colors: [
+                _primary.withOpacity(0.3),
+                _primary.withOpacity(0.0)
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+      ],
+    ));
+  }
+
+  Widget _buildRevenueChartCard() {
+    // 🎨 GLOW BORDER on revenue chart card
+    return _GlowBorderCard(
+      baseColor: _accentSuccess,
+      child: _industrialChartCard(
+        title: "Fee Collection",
+        subtitle: "Monthly revenue (₨)",
+        actions: [_industrialIconButton(Icons.more_vert, onPressed: () {})],
+        child: SizedBox(
+          height: isMobile ? 200.h : 280.h,
+          child: _buildEnhancedRevenueChart(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedRevenueChart() {
+    return BarChart(BarChartData(
+      alignment: BarChartAlignment.spaceAround,
+      maxY: 100000,
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        horizontalInterval: 25000,
+        getDrawingHorizontalLine: (value) =>
+            FlLine(color: _border, strokeWidth: 1),
+      ),
+      titlesData: FlTitlesData(
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            interval: 25000,
+            reservedSize: 50,
+            getTitlesWidget: (value, meta) => Text(
+                "₨${(value / 1000).toInt()}k",
+                style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+          ),
+        ),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            getTitlesWidget: (value, meta) {
+              final labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+              if (value.toInt() < labels.length)
+                return Padding(
+                  padding: EdgeInsets.only(top: 8.h),
+                  child: Text(labels[value.toInt()],
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                );
+              return const SizedBox();
+            },
+          ),
+        ),
+        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      ),
+      borderData: FlBorderData(show: false),
+      barGroups: [
+        _makeBarData(0, 45000, _primary),
+        _makeBarData(1, 68000, _primary),
+        _makeBarData(2, 55000, _primary),
+        _makeBarData(3, 82000, _accentSuccess),
+        _makeBarData(4, 75000, _primary),
+        _makeBarData(5, 92000, _accentSuccess),
+      ],
+    ));
+  }
+
+  BarChartGroupData _makeBarData(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(0.8)],
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+          ),
+          width: isMobile ? 20.w : 28.w,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(6.r)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentActivityCard() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('activities')
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final activities = snapshot.hasData ? snapshot.data!.docs : [];
+
+        return _industrialChartCard(
+          title: "Recent Activity",
+          subtitle: "Latest updates from your school",
+          actions: [
+            TextButton(
+              onPressed: () {},
+              child: Text("View All",
+                  style: TextStyle(
+                      color: _primary,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+          child: activities.isEmpty
+              ? _buildEmptyState(
+              icon: Icons.history,
+              title: "No recent activity",
+              subtitle: "Activities will appear here",
+              compact: true)
+              : Column(
+            children: activities.asMap().entries.map((entry) {
+              // 🎨 STAGGERED activity items
+              return _StaggeredItem(
+                index: entry.key,
+                child: _buildActivityItem(
+                  activity: entry.value,
+                  isLast: entry.key == activities.length - 1,
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActivityItem(
+      {required DocumentSnapshot activity, required bool isLast}) {
+    final String type = activity['type'] ?? 'info';
+    final Timestamp? timestamp = activity['timestamp'];
+    final String time =
+    timestamp != null ? _getTimeAgo(timestamp.toDate()) : "Unknown";
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 36.w,
+                height: 36.w,
+                decoration: BoxDecoration(
+                  color: _getActivityColor(type).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                child: Icon(_getActivityIcon(type),
+                    color: _getActivityColor(type), size: 18.sp),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2.w,
+                    margin: EdgeInsets.symmetric(vertical: 8.h),
+                    color: _border,
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(activity['title'] ?? 'Activity',
+                    style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600)),
+                SizedBox(height: 4.h),
+                Text(activity['description'] ?? '',
+                    style:
+                    TextStyle(color: _textSecondary, fontSize: 12.sp),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                SizedBox(height: 4.h),
+                Text(time,
+                    style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                if (!isLast) SizedBox(height: 16.h),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getActivityColor(String type) {
+    switch (type) {
+      case 'student':    return _accentInfo;
+      case 'teacher':    return _accentSuccess;
+      case 'fee':        return _accentWarning;
+      case 'attendance': return _primary;
+      default:           return _textSecondary;
+    }
+  }
+
+  IconData _getActivityIcon(String type) {
+    switch (type) {
+      case 'student':    return Icons.person_add;
+      case 'teacher':    return Icons.school;
+      case 'fee':        return Icons.payments;
+      case 'attendance': return Icons.fact_check;
+      default:           return Icons.info;
+    }
+  }
+
+  Widget _buildQuickStatsCard() {
+    return _industrialChartCard(
+      title: "Quick Stats",
+      subtitle: "This month's overview",
+      child: Column(
+        children: [
+          _buildQuickStatRow("New Admissions",  "24", _accentInfo),
+          SizedBox(height: 16.h),
+          _buildQuickStatRow("Fee Defaulters",  "8",  _accentDanger),
+          SizedBox(height: 16.h),
+          _buildQuickStatRow("Upcoming Events", "3",  _accentWarning),
+          SizedBox(height: 16.h),
+          _buildQuickStatRow("Staff on Leave",  "2",  _textSecondary),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStatRow(String label, String value, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+                width: 8.w,
+                height: 8.w,
+                decoration:
+                BoxDecoration(color: color, shape: BoxShape.circle)),
+            SizedBox(width: 12.w),
+            Text(label,
+                style:
+                TextStyle(color: _textSecondary, fontSize: 14.sp)),
+          ],
+        ),
+        Text(value,
+            style: TextStyle(
+                color: _textPrimary,
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+
+  // ─── TEACHER MODULE ───────────────────────────────────────
+  Widget _teacherModule() {
+    return StatefulBuilder(
+      builder: (context, setInnerState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildModuleHeader(
+              title: "Teacher Management",
+              subtitle: "Manage faculty, classes & subjects",
+              onAdd: () => _showAddTeacherDialog(setInnerState),
+            ),
+            SizedBox(height: isMobile ? 16.h : 24.h),
+            _buildSearchAndFilterBar(
+              onSearch: (query) =>
+                  setInnerState(() => searchQuery = query),
+              onFilter: () => _showFilterDialog(setInnerState),
+            ),
+            SizedBox(height: 16.h),
+            Expanded(
+              child: _buildPaginatedTeacherList(setInnerState),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildModuleHeader({
+    required String title,
+    required String subtitle,
+    required VoidCallback onAdd,
+  }) {
+    return isMobile
+        ? Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: TextStyle(
+                color: _textPrimary,
+                fontSize: 24.sp,
+                fontWeight: FontWeight.w800)),
+        SizedBox(height: 4.h),
+        Text(subtitle,
+            style:
+            TextStyle(color: _textSecondary, fontSize: 14.sp)),
+        SizedBox(height: 16.h),
+        SizedBox(
+          width: double.infinity,
+          child: _HoverCard(
+            scaleUp: 1.03,
+            glowColor: _primary,
+            enableGlow: true,
+            child: _industrialButton("Add Teacher",
+                icon: Icons.add, onPressed: onAdd),
+          ),
+        ),
+      ],
+    )
+        : Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title,
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 28.sp,
+                    fontWeight: FontWeight.w800)),
+            SizedBox(height: 8.h),
+            Text(subtitle,
+                style: TextStyle(
+                    color: _textSecondary, fontSize: 14.sp)),
+          ],
+        ),
+        _HoverCard(
+          scaleUp: 1.04,
+          glowColor: _primary,
+          enableGlow: true,
+          child: _industrialButton("Add Teacher",
+              icon: Icons.add, onPressed: onAdd),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchAndFilterBar({
+    required Function(String) onSearch,
+    required VoidCallback onFilter,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: _border),
+      ),
+      child: isMobile
+          ? Column(
+        children: [
+          _industrialSearchField("Search teachers...",
+              TextEditingController(),
+              onChanged: onSearch),
+          SizedBox(height: 12.h),
+          Row(
+            children: [
+              Expanded(
+                child: _HoverCard(
+                  scaleUp: 1.03,
+                  enableGlow: false,
+                  child: _industrialButton("Filters",
+                      icon: Icons.filter_list,
+                      onPressed: onFilter,
+                      isSecondary: true),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: _HoverCard(
+                  scaleUp: 1.03,
+                  enableGlow: false,
+                  child: _industrialButton("Sort",
+                      icon: Icons.sort,
+                      onPressed: () {},
+                      isSecondary: true),
+                ),
+              ),
+            ],
+          ),
+        ],
+      )
+          : Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: _industrialSearchField(
+                "Search by name, email, subject or class...",
+                TextEditingController(),
+                onChanged: onSearch),
+          ),
+          SizedBox(width: 16.w),
+          _HoverCard(
+            scaleUp: 1.04,
+            enableGlow: false,
+            child: _industrialButton("Filters",
+                icon: Icons.filter_list,
+                onPressed: onFilter,
+                isSecondary: true),
+          ),
+          SizedBox(width: 8.w),
+          _HoverCard(
+            scaleUp: 1.04,
+            enableGlow: false,
+            child: _industrialButton("Export",
+                icon: Icons.download,
+                onPressed: () {},
+                isSecondary: true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginatedTeacherList(StateSetter setInnerState) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection("schools")
+          .doc(widget.schoolId)
+          .collection("teachers")
+          .orderBy("createdAt", descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return _buildShimmerList();
+
+        final allTeachers = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>? ?? {};
+          final name =
+          (data['name'] ?? '').toString().toLowerCase();
+          final email =
+          (data['email'] ?? '').toString().toLowerCase();
+          final subjects =
+              (data['subjects'] as List<dynamic>?)?.join(' ') ?? '';
+          final classes =
+              (data['classes'] as List<dynamic>?)?.join(' ') ?? '';
+          final query = searchQuery.toLowerCase();
+          return name.contains(query) ||
+              email.contains(query) ||
+              subjects.toLowerCase().contains(query) ||
+              classes.toLowerCase().contains(query);
+        }).toList();
+
+        if (allTeachers.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.people_outline,
+            title: "No teachers found",
+            subtitle: searchQuery.isEmpty
+                ? "Add your first teacher to get started"
+                : "Try adjusting your search",
+          );
+        }
+
+        final totalPages =
+        (allTeachers.length / itemsPerPage).ceil();
+        final startIndex = (currentPage - 1) * itemsPerPage;
+        final endIndex =
+        (startIndex + itemsPerPage).clamp(0, allTeachers.length);
+        final teachers = allTeachers.sublist(startIndex, endIndex);
+
+        return Column(
+          children: [
+            Expanded(
+              child: isMobile
+                  ? ListView.builder(
+                itemCount: teachers.length,
+                itemBuilder: (context, index) =>
+                // 🎨 STAGGERED teacher cards
+                _StaggeredItem(
+                  index: index,
+                  child: _buildTeacherCard(
+                    teacher: teachers[index],
+                    onEdit: () => _showEditTeacherDialog(
+                        teachers[index], setInnerState),
+                    onDelete: () => _confirmDeleteTeacher(
+                        teachers[index]),
+                  ),
+                ),
+              )
+                  : _buildDataTable(teachers, setInnerState),
+            ),
+            if (totalPages > 1)
+              Container(
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: _bgCard,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: _border),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _industrialIconButton(Icons.chevron_left,
+                        onPressed: currentPage > 1
+                            ? () =>
+                            setInnerState(() => currentPage--)
+                            : null),
+                    SizedBox(width: 16.w),
+                    Text("Page $currentPage of $totalPages",
+                        style: TextStyle(
+                            color: _textSecondary, fontSize: 14.sp)),
+                    SizedBox(width: 16.w),
+                    _industrialIconButton(Icons.chevron_right,
+                        onPressed: currentPage < totalPages
+                            ? () =>
+                            setInnerState(() => currentPage++)
+                            : null),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDataTable(
+      List<DocumentSnapshot> teachers, StateSetter setInnerState) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding:
+            EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+            decoration: BoxDecoration(
+              color: _bgElevated,
+              borderRadius:
+              BorderRadius.vertical(top: Radius.circular(12.r)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: _buildSortableHeader("Teacher", Icons.person)),
+                Expanded(flex: 2, child: _buildSortableHeader("Classes", Icons.school)),
+                Expanded(flex: 2, child: _buildSortableHeader("Subjects", Icons.book)),
+                Expanded(child: _buildSortableHeader("Status", Icons.circle)),
+                SizedBox(width: 100.w),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              itemCount: teachers.length,
+              separatorBuilder: (_, __) =>
+                  Divider(color: _border, height: 1),
+              itemBuilder: (context, index) =>
+              // 🎨 STAGGERED + HOVER on table rows
+              _StaggeredItem(
+                index: index,
+                child: _HoverCard(
+                  scaleUp: 1.008,
+                  enableGlow: false,
+                  child: _buildTeacherTableRow(
+                    teacher: teachers[index],
+                    onEdit: () => _showEditTeacherDialog(
+                        teachers[index], setInnerState),
+                    onDelete: () =>
+                        _confirmDeleteTeacher(teachers[index]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortableHeader(String label, IconData icon) {
+    return GestureDetector(
+      onTap: () {},
+      child: Row(
+        children: [
+          Icon(icon, color: _textMuted, size: 16.sp),
+          SizedBox(width: 8.w),
+          Text(label,
+              style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600)),
+          SizedBox(width: 4.w),
+          Icon(Icons.unfold_more, color: _textMuted, size: 14.sp),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherTableRow({
+    required DocumentSnapshot teacher,
+    required VoidCallback onEdit,
+    required VoidCallback onDelete,
+  }) {
+    final data = teacher.data() as Map<String, dynamic>? ?? {};
+    final subjects = List<String>.from(data['subjects'] ?? []);
+    final classes = List<String>.from(data['classes'] ?? []);
+    final classTeacherOf = data['classTeacherOf'] as String?;
+    final status = data['status'] ?? 'active';
+
+    return Container(
+      padding:
+      EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                Container(
+                  width: 40.w,
+                  height: 40.w,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [_primary, _primaryLight]),
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (data['name'] ?? '')[0].toUpperCase(),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(data['name'] ?? '',
+                          style: TextStyle(
+                              color: _textPrimary,
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis),
+                      if (classTeacherOf != null)
+                        Container(
+                          margin: EdgeInsets.only(top: 4.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 6.w, vertical: 2.h),
+                          decoration: BoxDecoration(
+                            color: _accentInfo.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4.r),
+                            border: Border.all(
+                                color: _accentInfo.withOpacity(0.3)),
+                          ),
+                          child: Text("CT: $classTeacherOf",
+                              style: TextStyle(
+                                  color: _accentInfo,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Wrap(
+              spacing: 4.w,
+              runSpacing: 4.h,
+              children: classes.take(3).map((c) => _miniClassChip(c)).toList()
+                ..addIf(
+                    classes.length > 3,
+                    _miniClassChip("+${classes.length - 3}")),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Wrap(
+              spacing: 4.w,
+              runSpacing: 4.h,
+              children: subjects.take(2).map((s) => _miniSubjectChip(s)).toList()
+                ..addIf(
+                    subjects.length > 2,
+                    _miniSubjectChip("+${subjects.length - 2}")),
+            ),
+          ),
+          Expanded(child: _buildStatusBadge(status)),
+          SizedBox(
+            width: 100.w,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // 🎨 HOVER action buttons
+                _HoverIconButton(
+                    icon: Icons.edit_outlined,
+                    color: _primary,
+                    onPressed: onEdit),
+                SizedBox(width: 8.w),
+                _HoverIconButton(
+                    icon: Icons.delete_outline,
+                    color: _accentDanger,
+                    onPressed: onDelete),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniClassChip(String label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: _accentWarning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4.r),
+        border: Border.all(color: _accentWarning.withOpacity(0.3)),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: _accentWarning,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _miniSubjectChip(String label) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: _primary, fontSize: 11.sp, fontWeight: FontWeight.w500)),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    final isActive = status == 'active';
+    return Container(
+      padding:
+      EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: isActive
+            ? _accentSuccess.withOpacity(0.1)
+            : _accentDanger.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(
+          color: isActive
+              ? _accentSuccess.withOpacity(0.2)
+              : _accentDanger.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6.w,
+            height: 6.w,
+            decoration: BoxDecoration(
+              color: isActive ? _accentSuccess : _accentDanger,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: 6.w),
+          Text(isActive ? 'ACTIVE' : 'INACTIVE',
+              style: TextStyle(
+                  color: isActive ? _accentSuccess : _accentDanger,
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherCard({
+    required DocumentSnapshot teacher,
+    required VoidCallback onEdit,
+    required VoidCallback onDelete,
+  }) {
+    final data = teacher.data() as Map<String, dynamic>? ?? {};
+    final subjects = List<String>.from(data['subjects'] ?? []);
+    final classes = List<String>.from(data['classes'] ?? []);
+    final classTeacherOf = data['classTeacherOf'] as String?;
+    final status = data['status'] ?? 'active';
+    final weeklyPeriods = data['weeklyPeriods'] ?? 0;
+
+    // 🎨 HOVER on mobile teacher cards
+    return _HoverCard(
+      scaleUp: 1.018,
+      glowColor: _primary,
+      enableGlow: true,
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12.h),
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: _border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [_primary, _primaryLight]),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (data['name'] ?? '')[0].toUpperCase(),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(data['name'] ?? '',
+                          style: TextStyle(
+                              color: _textPrimary,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w700)),
+                      Text(data['email'] ?? '',
+                          style: TextStyle(
+                              color: _textMuted, fontSize: 12.sp)),
+                    ],
+                  ),
+                ),
+                _buildStatusBadge(status),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            if (classTeacherOf != null)
+              Container(
+                margin: EdgeInsets.only(bottom: 8.h),
+                padding: EdgeInsets.symmetric(
+                    horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: _accentInfo.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6.r),
+                  border: Border.all(
+                      color: _accentInfo.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, color: _accentInfo, size: 12.sp),
+                    SizedBox(width: 4.w),
+                    Text("Class Teacher: $classTeacherOf",
+                        style: TextStyle(
+                            color: _accentInfo,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            if (classes.isNotEmpty) ...[
+              Text("Classes",
+                  style: TextStyle(
+                      color: _textMuted,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600)),
+              SizedBox(height: 4.h),
+              Wrap(
+                  spacing: 6.w,
+                  runSpacing: 6.h,
+                  children:
+                  classes.map((c) => _classChip(c)).toList()),
+              SizedBox(height: 8.h),
+            ],
+            Text("Subjects",
+                style: TextStyle(
+                    color: _textMuted,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w600)),
+            SizedBox(height: 4.h),
+            Wrap(
+                spacing: 6.w,
+                runSpacing: 6.h,
+                children:
+                subjects.map((s) => _subjectChip(s)).toList()),
+            if (weeklyPeriods > 0) ...[
+              SizedBox(height: 8.h),
+              Row(
+                children: [
+                  Icon(Icons.schedule, color: _textMuted, size: 14.sp),
+                  SizedBox(width: 4.w),
+                  Text("$weeklyPeriods periods/week",
+                      style: TextStyle(
+                          color: _textMuted, fontSize: 11.sp)),
+                ],
+              ),
+            ],
+            SizedBox(height: 12.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _HoverIconButton(
+                    icon: Icons.edit_outlined,
+                    color: _primary,
+                    onPressed: onEdit),
+                SizedBox(width: 8.w),
+                _HoverIconButton(
+                    icon: Icons.delete_outline,
+                    color: _accentDanger,
+                    onPressed: onDelete),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _classChip(String className) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: _accentWarning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6.r),
+        border:
+        Border.all(color: _accentWarning.withOpacity(0.3)),
+      ),
+      child: Text(className,
+          style: TextStyle(
+              color: _accentWarning,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _subjectChip(String subject) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6.r),
+        border: Border.all(color: _primary.withOpacity(0.2)),
+      ),
+      child: Text(subject,
+          style: TextStyle(
+              color: _primary,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+
+  // ─── DIALOGS ─────────────────────────────────────────────
+  void _showAddTeacherDialog(StateSetter setInnerState) {
+    final nameController  = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    List<String> selectedSubjects = [];
+    List<String> selectedClasses  = [];
+    String? classTeacherOf;
+    int weeklyPeriods = 0;
+    bool isSaving = false;
+
+    final List<String> allSubjects = [
+      "Mathematics","Physics","Chemistry","Biology",
+      "Computer Science","English","History","Geography",
+      "Urdu","Islamiat","Pakistan Studies"
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, dialogSetState) => Dialog(
+          backgroundColor: _bgCard,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r)),
+          child: Container(
+            width: isMobile ? double.infinity : 600.w,
+            constraints: BoxConstraints(
+                maxHeight:
+                MediaQuery.of(context).size.height * 0.9),
+            padding: EdgeInsets.all(24.w),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        child: Icon(Icons.person_add,
+                            color: _primary, size: 24.sp),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                          children: [
+                            Text("Add New Teacher",
+                                style: TextStyle(
+                                    color: _textPrimary,
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w700)),
+                            Text("Fill in the details below",
+                                style: TextStyle(
+                                    color: _textSecondary,
+                                    fontSize: 13.sp)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: _textMuted),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 24.h),
+                  _industrialTextField("Full Name *", nameController),
+                  SizedBox(height: 16.h),
+                  _industrialTextField("Email Address *",
+                      emailController,
+                      type: TextInputType.emailAddress),
+                  SizedBox(height: 16.h),
+                  _industrialTextField("Phone Number", phoneController,
+                      type: TextInputType.phone),
+                  SizedBox(height: 20.h),
+                  Text("Select Subjects *",
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 12.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: allSubjects.map((subject) {
+                      final isSelected =
+                      selectedSubjects.contains(subject);
+                      return _industrialChip(
+                        label: subject,
+                        isSelected: isSelected,
+                        onTap: () {
+                          dialogSetState(() {
+                            isSelected
+                                ? selectedSubjects.remove(subject)
+                                : selectedSubjects.add(subject);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text("Assign Classes *",
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 12.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: availableClasses.map((className) {
+                      final isSelected =
+                      selectedClasses.contains(className);
+                      return _industrialChip(
+                        label: className,
+                        isSelected: isSelected,
+                        onTap: () {
+                          dialogSetState(() {
+                            isSelected
+                                ? selectedClasses.remove(className)
+                                : selectedClasses.add(className);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 20.h),
+                  if (selectedClasses.isNotEmpty) ...[
+                    Text("Class Teacher Of",
+                        style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(height: 8.h),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                      decoration: BoxDecoration(
+                        color: _bgElevated,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: _border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: classTeacherOf,
+                          isExpanded: true,
+                          dropdownColor: _bgElevated,
+                          hint: Text("Select main class (optional)",
+                              style: TextStyle(
+                                  color: _textMuted, fontSize: 14.sp)),
+                          items: selectedClasses.map((className) {
+                            return DropdownMenuItem(
+                              value: className,
+                              child: Text(className,
+                                  style: TextStyle(
+                                      color: _textPrimary,
+                                      fontSize: 14.sp)),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            dialogSetState(
+                                    () => classTeacherOf = value);
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                  ],
+                  _industrialTextField(
+                    "Weekly Periods",
+                    TextEditingController(
+                        text: weeklyPeriods > 0
+                            ? weeklyPeriods.toString()
+                            : ''),
+                    type: TextInputType.number,
+                    hint: "e.g., 24",
+                    onChanged: (value) {
+                      weeklyPeriods = int.tryParse(value) ?? 0;
+                    },
+                  ),
+                  SizedBox(height: 24.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _industrialButton("Cancel",
+                            onPressed: () => Navigator.pop(context),
+                            isSecondary: true),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: _HoverCard(
+                          scaleUp: 1.03,
+                          glowColor: _primary,
+                          enableGlow: true,
+                          child: _industrialButton(
+                            isSaving ? "Saving..." : "Save Teacher",
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                              if (nameController.text.isEmpty ||
+                                  emailController
+                                      .text.isEmpty ||
+                                  selectedSubjects.isEmpty ||
+                                  selectedClasses.isEmpty) {
+                                _showIndustrialSnackBar(
+                                    "Please fill all required fields",
+                                    isError: true);
+                                return;
+                              }
+                              dialogSetState(
+                                      () => isSaving = true);
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection("schools")
+                                    .doc(widget.schoolId)
+                                    .collection("teachers")
+                                    .add({
+                                  "name": nameController.text
+                                      .trim(),
+                                  "email": emailController.text
+                                      .trim(),
+                                  "phone": phoneController.text
+                                      .trim(),
+                                  "subjects": selectedSubjects,
+                                  "classes": selectedClasses,
+                                  "classTeacherOf":
+                                  classTeacherOf,
+                                  "weeklyPeriods": weeklyPeriods,
+                                  "schoolId": widget.schoolId,
+                                  "status": "active",
+                                  "createdAt":
+                                  FieldValue.serverTimestamp(),
+                                });
+                                Navigator.pop(context);
+                                _showIndustrialSnackBar(
+                                    "Teacher added successfully");
+                              } catch (e) {
+                                _showIndustrialSnackBar(
+                                    "Error: $e",
+                                    isError: true);
+                              }
+                            },
+                            isLoading: isSaving,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditTeacherDialog(
+      DocumentSnapshot teacher, StateSetter setInnerState) {
+    final data = teacher.data() as Map<String, dynamic>? ?? {};
+    final nameController =
+    TextEditingController(text: data['name']);
+    final emailController =
+    TextEditingController(text: data['email']);
+    final phoneController =
+    TextEditingController(text: data['phone'] ?? '');
+    List<String> selectedSubjects =
+    List<String>.from(data['subjects'] ?? []);
+    List<String> selectedClasses =
+    List<String>.from(data['classes'] ?? []);
+    String? classTeacherOf = data['classTeacherOf'] as String?;
+    int weeklyPeriods = data['weeklyPeriods'] ?? 0;
+    bool isSaving = false;
+
+    final List<String> allSubjects = [
+      "Mathematics","Physics","Chemistry","Biology",
+      "Computer Science","English","History","Geography",
+      "Urdu","Islamiat","Pakistan Studies"
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, dialogSetState) => Dialog(
+          backgroundColor: _bgCard,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.r)),
+          child: Container(
+            width: isMobile ? double.infinity : 600.w,
+            constraints: BoxConstraints(
+                maxHeight:
+                MediaQuery.of(context).size.height * 0.9),
+            padding: EdgeInsets.all(24.w),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Edit Teacher",
+                      style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w700)),
+                  SizedBox(height: 24.h),
+                  _industrialTextField("Full Name", nameController),
+                  SizedBox(height: 16.h),
+                  _industrialTextField("Email Address", emailController,
+                      type: TextInputType.emailAddress),
+                  SizedBox(height: 16.h),
+                  _industrialTextField("Phone Number", phoneController,
+                      type: TextInputType.phone),
+                  SizedBox(height: 20.h),
+                  Text("Subjects",
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 12.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: allSubjects.map((subject) {
+                      final isSelected =
+                      selectedSubjects.contains(subject);
+                      return _industrialChip(
+                        label: subject,
+                        isSelected: isSelected,
+                        onTap: () {
+                          dialogSetState(() {
+                            isSelected
+                                ? selectedSubjects.remove(subject)
+                                : selectedSubjects.add(subject);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 20.h),
+                  Text("Assign Classes",
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 12.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: availableClasses.map((className) {
+                      final isSelected =
+                      selectedClasses.contains(className);
+                      return _industrialChip(
+                        label: className,
+                        isSelected: isSelected,
+                        onTap: () {
+                          dialogSetState(() {
+                            isSelected
+                                ? selectedClasses.remove(className)
+                                : selectedClasses.add(className);
+                            if (!selectedClasses
+                                .contains(classTeacherOf)) {
+                              classTeacherOf = null;
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  SizedBox(height: 20.h),
+                  if (selectedClasses.isNotEmpty) ...[
+                    Text("Class Teacher Of",
+                        style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(height: 8.h),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                      decoration: BoxDecoration(
+                        color: _bgElevated,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: _border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: classTeacherOf,
+                          isExpanded: true,
+                          dropdownColor: _bgElevated,
+                          hint: Text("Select main class (optional)",
+                              style: TextStyle(
+                                  color: _textMuted, fontSize: 14.sp)),
+                          items: selectedClasses.map((className) {
+                            return DropdownMenuItem(
+                              value: className,
+                              child: Text(className,
+                                  style: TextStyle(
+                                      color: _textPrimary,
+                                      fontSize: 14.sp)),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            dialogSetState(
+                                    () => classTeacherOf = value);
+                          },
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                  ],
+                  _industrialTextField(
+                    "Weekly Periods",
+                    TextEditingController(
+                        text: weeklyPeriods > 0
+                            ? weeklyPeriods.toString()
+                            : ''),
+                    type: TextInputType.number,
+                    hint: "e.g., 24",
+                    onChanged: (value) {
+                      weeklyPeriods = int.tryParse(value) ?? 0;
+                    },
+                  ),
+                  SizedBox(height: 24.h),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _industrialButton("Cancel",
+                            onPressed: () => Navigator.pop(context),
+                            isSecondary: true),
+                      ),
+                      SizedBox(width: 12.w),
+                      Expanded(
+                        child: _HoverCard(
+                          scaleUp: 1.03,
+                          glowColor: _primary,
+                          enableGlow: true,
+                          child: _industrialButton(
+                            isSaving ? "Saving..." : "Update",
+                            onPressed: isSaving
+                                ? null
+                                : () async {
+                              dialogSetState(
+                                      () => isSaving = true);
+                              try {
+                                await teacher.reference
+                                    .update({
+                                  "name": nameController.text
+                                      .trim(),
+                                  "email": emailController.text
+                                      .trim(),
+                                  "phone": phoneController.text
+                                      .trim(),
+                                  "subjects": selectedSubjects,
+                                  "classes": selectedClasses,
+                                  "classTeacherOf":
+                                  classTeacherOf,
+                                  "weeklyPeriods": weeklyPeriods,
+                                  "updatedAt":
+                                  FieldValue.serverTimestamp(),
+                                });
+                                Navigator.pop(context);
+                                _showIndustrialSnackBar(
+                                    "Teacher updated successfully");
+                              } catch (e) {
+                                _showIndustrialSnackBar(
+                                    "Error: $e",
+                                    isError: true);
+                              }
+                            },
+                            isLoading: isSaving,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteTeacher(DocumentSnapshot teacher) {
+    final data = teacher.data() as Map<String, dynamic>? ?? {};
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: _bgCard,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber,
+                color: _accentWarning, size: 28.sp),
+            SizedBox(width: 12.w),
+            Text("Delete Teacher?",
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: Text(
+          "Are you sure you want to delete ${data['name']}? This action cannot be undone.",
+          style: TextStyle(color: _textSecondary, fontSize: 14.sp),
+        ),
+        actions: [
+          _industrialButton("Cancel",
+              onPressed: () => Navigator.pop(context),
+              isSecondary: true),
+          SizedBox(width: 8.w),
+          _industrialButton("Delete", onPressed: () async {
+            try {
+              await teacher.reference.delete();
+              Navigator.pop(context);
+              _showIndustrialSnackBar("Teacher deleted successfully");
+            } catch (e) {
+              _showIndustrialSnackBar("Error: $e", isError: true);
+            }
+          }),
+        ],
+      ),
+    );
+  }
+
+  void _showFilterDialog(StateSetter setInnerState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _bgCard,
+      shape: RoundedRectangleBorder(
+          borderRadius:
+          BorderRadius.vertical(top: Radius.circular(24.r))),
+      builder: (context) => Container(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Filter Teachers",
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 20.sp,
+                    fontWeight: FontWeight.w700)),
+            SizedBox(height: 20.h),
+            Text("Status",
+                style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600)),
+            SizedBox(height: 12.h),
+            Wrap(
+              spacing: 8.w,
+              children: [
+                _filterChip("All", true),
+                _filterChip("Active", false),
+                _filterChip("Inactive", false),
+              ],
+            ),
+            SizedBox(height: 20.h),
+            Text("Classes",
+                style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600)),
+            SizedBox(height: 12.h),
+            Wrap(
+              spacing: 8.w,
+              runSpacing: 8.h,
+              children: availableClasses
+                  .take(8)
+                  .map((c) => _filterChip(c, false))
+                  .toList(),
+            ),
+            SizedBox(height: 24.h),
+            SizedBox(
+              width: double.infinity,
+              child: _industrialButton("Apply Filters",
+                  onPressed: () => Navigator.pop(context)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, bool isSelected) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {},
+      backgroundColor: _bgElevated,
+      selectedColor: _primary,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : _textSecondary,
+        fontSize: 13.sp,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.r),
+        side: BorderSide(
+            color: isSelected ? _primary : _border),
+      ),
+    );
+  }
+
+  // ─── PLACEHOLDER MODULES ─────────────────────────────────
+  Widget _analyticsModule()     => _comingSoon("Analytics");
+  Widget _announcementsModule() => _comingSoon("Announcements");
+
+  Widget _comingSoon(String title) {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(isMobile ? 32.w : 48.w),
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.circular(24.r),
+          border: Border.all(color: _border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.rocket_launch,
+                color: _primary,
+                size: isMobile ? 48.sp : 64.sp),
+            SizedBox(height: isMobile ? 16.h : 24.h),
+            Text("$title Module",
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: isMobile ? 20.sp : 24.sp,
+                    fontWeight: FontWeight.w800)),
+            SizedBox(height: 8.h),
+            Text("Coming Soon",
+                style: TextStyle(
+                    color: _textMuted,
+                    fontSize: isMobile ? 14.sp : 16.sp)),
+            SizedBox(height: 24.h),
+            _industrialButton("Back to Dashboard",
+                onPressed: () =>
+                    setState(() => selectedMenu = "Dashboard"),
+                isSecondary: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── UI COMPONENTS ───────────────────────────────────────
+  Widget _industrialChartCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+    List<Widget>? actions,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 16.w : 24.w),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 4))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: _textPrimary,
+                            fontSize: isMobile ? 16.sp : 18.sp,
+                            fontWeight: FontWeight.w700)),
+                    SizedBox(height: 4.h),
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: _textMuted,
+                            fontSize: isMobile ? 11.sp : 12.sp)),
+                  ],
+                ),
+              ),
+              if (actions != null) ...actions,
+            ],
+          ),
+          SizedBox(height: isMobile ? 16.h : 24.h),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _industrialTextField(
+      String label,
+      TextEditingController controller, {
+        TextInputType type = TextInputType.text,
+        String? hint,
+        Function(String)? onChanged,
+      }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 8.h),
+        Container(
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: _border),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: type,
+            onChanged: onChanged,
+            style: TextStyle(color: _textPrimary, fontSize: 14.sp),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle:
+              TextStyle(color: _textMuted, fontSize: 14.sp),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16.w, vertical: 14.h),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _industrialSearchField(
+      String hint,
+      TextEditingController controller, {
+        required Function(String) onChanged,
+      }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgElevated,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: _border),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: TextStyle(color: _textPrimary, fontSize: 14.sp),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: _textMuted, fontSize: 14.sp),
+          prefixIcon:
+          Icon(Icons.search, color: _textMuted, size: 20.sp),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+              horizontal: 16.w, vertical: 14.h),
+        ),
+      ),
+    );
+  }
+
+  Widget _industrialChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding:
+        EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? const LinearGradient(
+              colors: [_primary, _primaryLight])
+              : null,
+          color: isSelected ? null : _bgElevated,
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(
+              color:
+              isSelected ? Colors.transparent : _border),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                color: isSelected ? Colors.white : _textSecondary,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w500)),
+      ),
+    );
+  }
+
+  Widget _industrialButton(
+      String label, {
+        IconData? icon,
+        VoidCallback? onPressed,
+        bool isSecondary = false,
+        bool isLoading = false,
+      }) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: isSecondary || onPressed == null
+            ? null
+            : const LinearGradient(
+            colors: [_primary, _primaryLight]),
+        color: isSecondary ? Colors.transparent : null,
+        borderRadius: BorderRadius.circular(10.r),
+        border: isSecondary
+            ? Border.all(color: _border)
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(10.r),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: 20.w, vertical: 12.h),
+            child: isLoading
+                ? SizedBox(
+                width: 20.w,
+                height: 20.w,
+                child: const CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
+                : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon,
+                      color: isSecondary
+                          ? _textPrimary
+                          : Colors.white,
+                      size: 18.sp),
+                  SizedBox(width: 8.w),
+                ],
+                Text(label,
+                    style: TextStyle(
+                        color: isSecondary
+                            ? _textPrimary
+                            : Colors.white,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _industrialTextButton(String label,
+      {required VoidCallback onPressed}) {
+    return TextButton(
+      onPressed: onPressed,
+      child: Text(label,
+          style: TextStyle(
+              color: _primary,
+              fontSize: 13.sp,
+              fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _industrialIconButton(
+      IconData icon, {
+        Color? color,
+        VoidCallback? onPressed,
+      }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgElevated,
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: _border),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(10.r),
+          child: Container(
+            padding: EdgeInsets.all(10.w),
+            child: Icon(icon,
+                color: color ?? _textSecondary, size: 20.sp),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _industrialActionButton(
+      IconData icon, Color color, VoidCallback onPressed) {
+    // 🎨 Route through _HoverIconButton for hover effect
+    return _HoverIconButton(
+        icon: icon, color: color, onPressed: onPressed);
+  }
+
+  void _showIndustrialSnackBar(String message,
+      {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(isMobile ? 16.w : 24.w),
+        content: Container(
+          padding:
+          EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          decoration: BoxDecoration(
+            color: isError ? _accentDanger : _bgCard,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(
+                color: isError ? _accentDanger : _border),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20)
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isError
+                    ? Icons.error_outline
+                    : Icons.check_circle_outline,
+                color: isError ? Colors.white : _accentSuccess,
+                size: 24.sp,
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Text(message,
+                    style: TextStyle(
+                        color: isError ? Colors.white : _textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    bool compact = false,
+  }) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 24.w : 40.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(compact ? 16.w : 24.w),
+              decoration: BoxDecoration(
+                color: _primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon,
+                  color: _primary,
+                  size: compact ? 32.sp : 48.sp),
+            ),
+            SizedBox(height: compact ? 12.h : 20.h),
+            Text(title,
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: compact ? 16.sp : 20.sp,
+                    fontWeight: FontWeight.w700)),
+            SizedBox(height: 4.h),
+            Text(subtitle,
+                style: TextStyle(
+                    color: _textSecondary,
+                    fontSize: compact ? 12.sp : 14.sp),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      itemCount: 5,
+      itemBuilder: (context, index) => Shimmer.fromColors(
+        baseColor: _bgCard,
+        highlightColor: _bgElevated,
+        child: Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          padding: EdgeInsets.all(16.w),
+          decoration: BoxDecoration(
+            color: _bgCard,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Row(
+            children: [
+              Container(
+                  width: 48.w,
+                  height: 48.w,
+                  decoration: const BoxDecoration(
+                      color: Colors.white, shape: BoxShape.circle)),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                        width: double.infinity,
+                        height: 16.h,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                            BorderRadius.circular(4.r))),
+                    SizedBox(height: 8.h),
+                    Container(
+                        width: 150.w,
+                        height: 12.h,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                            BorderRadius.circular(4.r))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── DRAWER & BOTTOM NAV ─────────────────────────────────
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 PROFESSIONAL DRAWER — with active indicators & animations
+  // ═══════════════════════════════════════════════════════════════════════════
+
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🎨 PROFESSIONAL DRAWER — with Sections, Active Indicators & Animations
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildEnhancedMobileBottomNav() {
+    final items = [
+      ("Dashboard", Icons.dashboard_outlined, Icons.dashboard),
+      ("Students",  Icons.people_outline,     Icons.people),
+      ("Teachers",  Icons.person_outline,     Icons.person),
+      ("More",      Icons.menu,               Icons.menu),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgCard,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+              horizontal: 16.w, vertical: 8.h),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: items.map((item) {
+              final (label, icon, activeIcon) = item;
+              final isActive = selectedMenu == label ||
+                  (label == "More" &&
+                      [
+                        "Attendance","Fees","Analytics",
+                        "Announcements","Settings"
+                      ].contains(selectedMenu));
+
+              // 🎨 ANIMATED scale on bottom nav tap
+              return GestureDetector(
+                onTap: () {
+                  if (label == "More") {
+                    _scaffoldKey.currentState?.openDrawer();
+                  } else {
+                    setState(() => selectedMenu = label);
+                  }
+                },
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 1.0, end: isActive ? 1.12 : 1.0),
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  builder: (context, scale, child) =>
+                      Transform.scale(scale: scale, child: child),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 12.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? _primary.withOpacity(0.2)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isActive ? activeIcon : icon,
+                          color: isActive ? _primary : _textMuted,
+                          size: 24.sp,
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(label,
+                            style: TextStyle(
+                                color:
+                                isActive ? _primary : _textMuted,
+                                fontSize: 11.sp,
+                                fontWeight: isActive
+                                    ? FontWeight.w600
+                                    : FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleLogout() async {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginPage(
+            preselectedRole: 'admin', userType: ''),
+      ),
+          (route) => false,
+    );
+  }
+
+  Widget _buildContent() {
+    switch (selectedMenu) {
+      case "Teachers":
+        return _teacherModule();
+      case "Students":
+        return StudentModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Attendance":
+        return AttendanceModule(
+          schoolId: widget.schoolId,
+          isMobile: isMobile,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Fees":
+        return FeeModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Analytics":
+        return _analyticsModule();
+      case "Announcements":
+        return _announcementsModule();
+      case "Settings":
+        return SettingsModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Salary":
+        return SalaryModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+          onBackToDashboard: () =>
+              setState(() => selectedMenu = "Dashboard"),
+        );
+      case "Exams":
+        return ExamResultsModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Dashboard":
+      default:
+        return _dashboardContent();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 SIDEBAR DATA MODELS
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _SidebarSection {
+  final String key;
+  final String title;
+  final IconData icon;
+  final List<_SidebarItem> items;
+
+  const _SidebarSection({
+    required this.key,
+    required this.title,
+    required this.icon,
+    required this.items,
+  });
+}
+
+class _SidebarItem {
+  final String title;
+  final IconData icon;
+  final IconData activeIcon;
+  final String route;
+  final String? collection;
+
+  const _SidebarItem({
+    required this.title,
+    required this.icon,
+    required this.activeIcon,
+    required this.route,
+    this.collection,
+  });
+}
+/// Nav row: subtle hover bg + pill-shaped active indicator on the left edge.
+/// Windows 11 style nav row — full row highlight, left accent border
+/// Windows 11 style nav row — full row highlight, left accent border
+class _Win11NavRow extends StatefulWidget {
+  final Widget child;
+  final bool isActive;
+  final Color accentColor;
+  final bool isExpanded;
+
+  const _Win11NavRow({
+    required this.child,
+    required this.isActive,
+    required this.accentColor,
+    required this.isExpanded,
+  });
+
+  @override
+  State<_Win11NavRow> createState() => _Win11NavRowState();
+}
+
+class _Win11NavRowState extends State<_Win11NavRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg = widget.isActive
+        ? Win11Colors.active
+        : (_hovered ? Win11Colors.hover : Colors.transparent);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: widget.isExpanded ? 8.w : 4.w,
+          vertical: 1.h,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.isExpanded ? 12.w : 0,
+          vertical: widget.isExpanded ? 8.h : 10.h,
+        ),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(4.r),
+          border: Border(
+            left: BorderSide(
+              color: widget.isActive ? widget.accentColor : Colors.transparent,
+              width: widget.isActive ? 3.w : 0,
+            ),
+          ),
+        ),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Windows 11 hover row for footer
+class _Win11HoverRow extends StatefulWidget {
+  final Widget child;
+  final bool isExpanded;
+  const _Win11HoverRow({required this.child, required this.isExpanded});
+
+  @override
+  State<_Win11HoverRow> createState() => _Win11HoverRowState();
+}
+
+class _Win11HoverRowState extends State<_Win11HoverRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.isExpanded ? 8.w : 4.w,
+          vertical: 6.h,
+        ),
+        decoration: BoxDecoration(
+          color: _hovered ? Win11Colors.hover : Colors.transparent,
+          borderRadius: BorderRadius.circular(4.r),
+        ),
+        child: Center(child: widget.child),
+      ),
+    );
+  }
+}
