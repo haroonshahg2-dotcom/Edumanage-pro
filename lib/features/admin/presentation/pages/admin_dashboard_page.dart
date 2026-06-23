@@ -444,6 +444,7 @@ class _GlowBorderCardState extends State<_GlowBorderCard>
   }
 }
 
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD — all original code below, animations woven in
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1164,19 +1165,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildProfessionalSidebar() {
-    return Container(
-      width: isSidebarOpen ? 240.w : 48.w,
-      color: Win11Colors.bg,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      width: isSidebarOpen ? 240.w : 56.w,
+      decoration: BoxDecoration(
+        // Deep obsidian with a subtle blue undertone
+        color: const Color(0xFF080B12),
+        border: Border(
+          right: BorderSide(
+            color: const Color(0xFF1A1F2E),
+            width: 1,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 24,
+            offset: const Offset(4, 0),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           _buildSidebarBrand(),
-          Divider(color: Win11Colors.border, height: 1, thickness: 1),
+          _buildSidebarSearch(),
           Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 0),
-              itemCount: _sidebarSections.length,
-              itemBuilder: (context, index) => _buildSidebarSection(
-                _sidebarSections[index], index,
+            child: ScrollConfiguration(
+              behavior: const ScrollBehavior().copyWith(scrollbars: false),
+              child: ListView.builder(
+                padding: EdgeInsets.symmetric(vertical: 6.h),
+                itemCount: _sidebarSections.length,
+                itemBuilder: (context, index) =>
+                    _buildSidebarSection(_sidebarSections[index], index),
               ),
             ),
           ),
@@ -1188,124 +1209,238 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Widget _buildSidebarBrand() {
     return Container(
-      padding: isSidebarOpen
-          ? EdgeInsets.fromLTRB(16.w, 12.h, 12.w, 12.h)
-          : EdgeInsets.symmetric(vertical: 12.h, horizontal: 8.w),
+      height: 58.h,
+      padding: EdgeInsets.symmetric(
+        horizontal: isSidebarOpen ? 16.w : 10.w,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: const Color(0xFF141824), width: 1),
+        ),
+      ),
       child: isSidebarOpen
           ? Row(
         children: [
+          // Logo mark with gradient shimmer effect
           Container(
-            width: 28.w,
-            height: 28.w,
+            width: 32.w,
+            height: 32.w,
             decoration: BoxDecoration(
-              color: _primary,
-              borderRadius: BorderRadius.circular(6.r),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF7C8CF0), Color(0xFF5A6BE8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8.r),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF7C8CF0).withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(Icons.school, color: Colors.white, size: 16.sp),
+            child: Icon(Icons.school_rounded,
+                color: Colors.white, size: 18.sp),
           ),
-          SizedBox(width: 10.w),
+          SizedBox(width: 12.w),
           Expanded(
-            child: Text(
-              'EduManage',
-              style: TextStyle(
-                color: Win11Colors.textActive,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Color(0xFFEEF1F8), Color(0xFF9AA5F3)],
+                  ).createShader(bounds),
+                  child: Text(
+                    'EduManage',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Pro Dashboard',
+                  style: TextStyle(
+                    color: const Color(0xFF4A5168),
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Toggle chevron
+          GestureDetector(
+            onTap: () => setState(() => isSidebarOpen = !isSidebarOpen),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: AnimatedRotation(
+                turns: 0,
+                duration: const Duration(milliseconds: 220),
+                child: Container(
+                  padding: EdgeInsets.all(6.w),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141824),
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                  child: Icon(Icons.chevron_left_rounded,
+                      color: const Color(0xFF4A5168), size: 16.sp),
+                ),
               ),
             ),
           ),
-          _buildSidebarToggle(),
         ],
       )
-          : Center(child: _buildSidebarToggle()),
-    );
-  }
-
-  Widget _buildSidebarToggle() {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => setState(() => isSidebarOpen = !isSidebarOpen),
-        child: Container(
-          width: 24.w,
-          height: 24.w,
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(4.r),
-          ),
-          child: AnimatedRotation(
-            turns: isSidebarOpen ? 0 : 0.5,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            child: Icon(Icons.chevron_left, color: Win11Colors.textMuted, size: 18.sp),
+          : Center(
+        child: GestureDetector(
+          onTap: () => setState(() => isSidebarOpen = !isSidebarOpen),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              width: 32.w,
+              height: 32.w,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C8CF0), Color(0xFF5A6BE8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(8.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C8CF0).withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Icon(Icons.school_rounded,
+                  color: Colors.white, size: 18.sp),
+            ),
           ),
         ),
       ),
     );
   }
 
+  // ── Collapsible search bar ──────────────────────────────────────────────
+  Widget _buildSidebarSearch() {
+    if (!isSidebarOpen) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 4.h),
+      child: Container(
+        height: 34.h,
+        decoration: BoxDecoration(
+          color: const Color(0xFF111521),
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: const Color(0xFF1A2035), width: 1),
+        ),
+        child: Row(
+          children: [
+            SizedBox(width: 10.w),
+            Icon(Icons.search_rounded,
+                color: const Color(0xFF3A4055), size: 15.sp),
+            SizedBox(width: 6.w),
+            Expanded(
+              child: TextField(
+                style: TextStyle(
+                    color: const Color(0xFF8B92A8), fontSize: 12.sp),
+                decoration: InputDecoration(
+                  hintText: 'Quick find...',
+                  hintStyle: TextStyle(
+                      color: const Color(0xFF3A4055), fontSize: 12.sp),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+            Container(
+              margin: EdgeInsets.only(right: 8.w),
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A2035),
+                borderRadius: BorderRadius.circular(4.r),
+              ),
+              child: Text('⌘K',
+                  style: TextStyle(
+                      color: const Color(0xFF3A4055), fontSize: 9.sp)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Section block ───────────────────────────────────────────────────────
   Widget _buildSidebarSection(_SidebarSection section, int sectionIndex) {
     final accentColor = _sectionAccentColors[section.key] ?? _accentIndigo;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: sectionIndex == _sidebarSections.length - 1 ? 0 : 4.h),
+      padding: EdgeInsets.only(
+          bottom: sectionIndex == _sidebarSections.length - 1 ? 0 : 2.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ─── SECTION HEADER ───
-          if (isSidebarOpen && section.title.isNotEmpty) ...[
-            GestureDetector(
-              onTap: () => setState(() => _expandedSections[section.key] = !(_expandedSections[section.key] ?? true)),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(16.w, 12.h, 12.w, 6.h),
-                child: Row(
-                  children: [
-                    Text(
-                      section.title,
-                      style: TextStyle(
-                        color: Win11Colors.textMuted,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w400,
-                      ),
+          // ── Section label ──
+          if (isSidebarOpen && section.title.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.fromLTRB(20.w, 14.h, 12.w, 4.h),
+              child: Row(
+                children: [
+                  Container(
+                    width: 14.w,
+                    height: 1,
+                    color: accentColor.withOpacity(0.35),
+                    margin: EdgeInsets.only(right: 6.w),
+                  ),
+                  Text(
+                    section.title.toUpperCase(),
+                    style: TextStyle(
+                      color: accentColor.withOpacity(0.55),
+                      fontSize: 9.5.sp,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
                     ),
-                    const Spacer(),
-                  ],
+                  ),
+                ],
+              ),
+            )
+          else if (!isSidebarOpen)
+          // Collapsed: show section divider dot
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 6.h),
+              child: Center(
+                child: Container(
+                  width: 4.w,
+                  height: 4.w,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ),
-          ],
 
-          // ─── SECTION ITEMS ───
-          if (isSidebarOpen) ...[
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: section.items.map((item) {
-                return _buildSidebarMenuItem(
-                  item: item,
-                  sectionColor: accentColor,
-                  isExpanded: true,
-                );
-              }).toList(),
-            ),
-          ] else ...[
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: section.items.map((item) {
-                return _buildSidebarMenuItem(
-                  item: item,
-                  sectionColor: accentColor,
-                  isExpanded: false,
-                );
-              }).toList(),
-            ),
-          ],
+          // ── Items ──
+          ...section.items.map((item) => _buildSidebarMenuItem(
+            item: item,
+            sectionColor: accentColor,
+            isExpanded: isSidebarOpen,
+          )),
         ],
       ),
     );
   }
 
+  // ── Single menu item ────────────────────────────────────────────────────
   Widget _buildSidebarMenuItem({
     required _SidebarItem item,
     required Color sectionColor,
@@ -1322,61 +1457,36 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           .snapshots()
           : null,
       builder: (context, snapshot) {
-        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+        final count =
+        snapshot.hasData ? snapshot.data!.docs.length : 0;
 
         return Tooltip(
           message: isExpanded ? '' : item.title,
           preferBelow: false,
-          verticalOffset: 24,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => setState(() {
-                selectedMenu = item.route;
-                currentPage = 1;
-              }),
-              child: _Win11NavRow(
-                isActive: isActive,
-                accentColor: sectionColor,
-                isExpanded: isExpanded,
-                child: Row(
-                  mainAxisAlignment:
-                  isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isActive ? item.activeIcon : item.icon,
-                      color: isActive ? sectionColor : Win11Colors.text,
-                      size: isExpanded ? 20.sp : 22.sp,
-                    ),
-                    if (isExpanded) ...[
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: TextStyle(
-                            color: isActive ? Win11Colors.textActive : Win11Colors.text,
-                            fontSize: 12.sp,
-                            fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (item.collection != null && count > 0)
-                        Padding(
-                          padding: EdgeInsets.only(left: 8.w),
-                          child: Text(
-                            '$count',
-                            style: TextStyle(
-                              color: Win11Colors.textMuted,
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
+          verticalOffset: 0,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1F2E),
+            borderRadius: BorderRadius.circular(6.r),
+            border: Border.all(
+                color: sectionColor.withOpacity(0.25), width: 1),
+          ),
+          textStyle: TextStyle(
+              color: const Color(0xFFEEF1F8),
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500),
+          child: GestureDetector(
+            onTap: () => setState(() {
+              selectedMenu = item.route;
+              currentPage = 1;
+            }),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: _buildNavRowWithPill(
+                  item: item,
+                  isActive: isActive,
+                  sectionColor: sectionColor,
+                  isExpanded: isExpanded,
+                  count: count),
             ),
           ),
         );
@@ -1384,60 +1494,290 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
+  Widget _buildNavRowWithPill({
+    required _SidebarItem item,
+    required bool isActive,
+    required Color sectionColor,
+    required bool isExpanded,
+    required int count,
+  }) {
+    return _Win11NavRow(
+      isActive: isActive,
+      accentColor: sectionColor,
+      isExpanded: isExpanded,
+      child: Row(
+        mainAxisAlignment:
+        isExpanded ? MainAxisAlignment.start : MainAxisAlignment.center,
+        children: [
+          // Active pill indicator (left edge)
+          if (isExpanded) ...[
+            _ActivePill(isActive: isActive, color: sectionColor),
+            SizedBox(width: isActive ? 10.w : 4.w),
+          ],
+
+          // Icon with glow when active
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.all(isActive ? 7.w : 6.w),
+            decoration: isActive
+                ? BoxDecoration(
+              color: sectionColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8.r),
+              boxShadow: [
+                BoxShadow(
+                  color: sectionColor.withOpacity(0.3),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                ),
+              ],
+            )
+                : BoxDecoration(
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(
+              isActive ? item.activeIcon : item.icon,
+              color: isActive ? sectionColor : const Color(0xFF4A5168),
+              size: isExpanded ? 16.sp : 20.sp,
+            ),
+          ),
+
+          if (isExpanded) ...[
+            SizedBox(width: 10.w),
+            Expanded(
+              child: Text(
+                item.title,
+                style: TextStyle(
+                  color: isActive
+                      ? const Color(0xFFEEF1F8)
+                      : const Color(0xFF6B7385),
+                  fontSize: 13.sp,
+                  fontWeight:
+                  isActive ? FontWeight.w600 : FontWeight.w400,
+                  letterSpacing: isActive ? 0.1 : 0,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+            // Count badge
+            if (item.collection != null && count > 0)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                    horizontal: 7.w, vertical: 2.h),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? sectionColor.withOpacity(0.2)
+                      : const Color(0xFF141824),
+                  borderRadius: BorderRadius.circular(20.r),
+                  border: Border.all(
+                    color: isActive
+                        ? sectionColor.withOpacity(0.4)
+                        : const Color(0xFF1E2538),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: TextStyle(
+                    color: isActive
+                        ? sectionColor
+                        : const Color(0xFF4A5168),
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom profile + logout ─────────────────────────────────────────────
   Widget _buildSidebarBottomActions() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        border: Border(top: BorderSide(color: Win11Colors.border)),
+        border: Border(
+          top: BorderSide(color: const Color(0xFF141824), width: 1),
+        ),
+        // Subtle upward gradient
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF080B12).withOpacity(0),
+            const Color(0xFF080B12),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: _handleLogout,
-          child: _Win11HoverRow(
-            isExpanded: isSidebarOpen,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Logout button
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                isSidebarOpen ? 10.w : 8.w,
+                8.h,
+                isSidebarOpen ? 10.w : 8.w,
+                4.h),
+            child: GestureDetector(
+              onTap: _handleLogout,
+              child: _Win11HoverRow(
+                isExpanded: isSidebarOpen,
+                child: isSidebarOpen
+                    ? Row(
+                  children: [
+                    Icon(Icons.logout_rounded,
+                        color: const Color(0xFFF2657A), size: 16.sp),
+                    SizedBox(width: 10.w),
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: const Color(0xFFF2657A),
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                )
+                    : Icon(Icons.logout_rounded,
+                    color: const Color(0xFFF2657A), size: 18.sp),
+              ),
+            ),
+          ),
+
+          // Profile strip
+          Container(
+            margin: EdgeInsets.fromLTRB(
+                isSidebarOpen ? 10.w : 6.w,
+                0,
+                isSidebarOpen ? 10.w : 6.w,
+                10.h),
+            padding: EdgeInsets.symmetric(
+                horizontal: isSidebarOpen ? 10.w : 6.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1220),
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(color: const Color(0xFF1A2035), width: 1),
+            ),
             child: isSidebarOpen
                 ? Row(
               children: [
+                // Avatar with gradient ring
                 Container(
-                  width: 24.w,
-                  height: 24.w,
+                  padding: const EdgeInsets.all(1.5),
                   decoration: BoxDecoration(
-                    color: _primary,
-                    borderRadius: BorderRadius.circular(4.r),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF7C8CF0), Color(0xFF3DD68B)],
+                    ),
+                    borderRadius: BorderRadius.circular(8.r),
                   ),
-                  child: Center(
-                    child: Text(
-                      widget.adminName?.substring(0, 1).toUpperCase() ?? 'A',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11.sp,
-                        fontWeight: FontWeight.w600,
+                  child: Container(
+                    width: 28.w,
+                    height: 28.w,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C8CF0),
+                      borderRadius: BorderRadius.circular(6.5.r),
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.adminName
+                            ?.substring(0, 1)
+                            .toUpperCase() ??
+                            'A',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 SizedBox(width: 10.w),
                 Expanded(
-                  child: Text(
-                    widget.adminName ?? 'Admin',
-                    style: TextStyle(
-                      color: Win11Colors.text,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.adminName ?? 'Admin',
+                        style: TextStyle(
+                          color: const Color(0xFFCDD2E0),
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 5.w,
+                            height: 5.w,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF3DD68B),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            'Online',
+                            style: TextStyle(
+                              color: const Color(0xFF4A5168),
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                Icon(Icons.logout, color: Win11Colors.textMuted, size: 16.sp),
+                Icon(Icons.more_horiz_rounded,
+                    color: const Color(0xFF3A4055), size: 16.sp),
               ],
             )
-                : Icon(Icons.logout, color: Win11Colors.textMuted, size: 20.sp),
+                : Center(
+              child: Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C8CF0), Color(0xFF3DD68B)],
+                  ),
+                  borderRadius: BorderRadius.circular(7.r),
+                ),
+                child: Container(
+                  width: 26.w,
+                  height: 26.w,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C8CF0),
+                    borderRadius: BorderRadius.circular(5.5.r),
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.adminName
+                          ?.substring(0, 1)
+                          .toUpperCase() ??
+                          'A',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
+// ═══════════════════════════════════════════════════════════════════════════
+// END OF SIDEBAR REDESIGN
+// ═══════════════════════════════════════════════════════════════════════════
   // ═══════════════════════════════════════════════════════════════════════════
   // 🎨 PROFESSIONAL DRAWER (Mobile)
   // ═══════════════════════════════════════════════════════════════════════════
@@ -4719,9 +5059,6 @@ class _SidebarItem {
     this.collection,
   });
 }
-/// Nav row: subtle hover bg + pill-shaped active indicator on the left edge.
-/// Windows 11 style nav row — full row highlight, left accent border
-/// Windows 11 style nav row — full row highlight, left accent border
 class _Win11NavRow extends StatefulWidget {
   final Widget child;
   final bool isActive;
@@ -4739,36 +5076,60 @@ class _Win11NavRow extends StatefulWidget {
   State<_Win11NavRow> createState() => _Win11NavRowState();
 }
 
-class _Win11NavRowState extends State<_Win11NavRow> {
+class _Win11NavRowState extends State<_Win11NavRow>
+    with SingleTickerProviderStateMixin {
   bool _hovered = false;
+  late AnimationController _ctrl;
+  late Animation<double> _bgAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 180));
+    _bgAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = widget.isActive
-        ? Win11Colors.active
-        : (_hovered ? Win11Colors.hover : Colors.transparent);
-
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          horizontal: widget.isExpanded ? 8.w : 4.w,
-          vertical: 1.h,
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.isExpanded ? 12.w : 0,
-          vertical: widget.isExpanded ? 8.h : 10.h,
-        ),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(4.r),
-          border: Border(
-            left: BorderSide(
-              color: widget.isActive ? widget.accentColor : Colors.transparent,
-              width: widget.isActive ? 3.w : 0,
-            ),
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        _ctrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovered = false);
+        _ctrl.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _bgAnim,
+        builder: (_, child) => Container(
+          margin: EdgeInsets.symmetric(
+            horizontal: widget.isExpanded ? 8.w : 4.w,
+            vertical: 1.5.h,
           ),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.isExpanded ? 12.w : 0,
+            vertical: 10.h,
+          ),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? widget.accentColor.withOpacity(0.13)
+                : Color.lerp(Colors.transparent,
+                const Color(0xFF1E2130), _bgAnim.value),
+            borderRadius: BorderRadius.circular(10.r),
+            border: widget.isActive
+                ? Border.all(
+                color: widget.accentColor.withOpacity(0.25), width: 1)
+                : null,
+          ),
+          child: child,
         ),
         child: widget.child,
       ),
@@ -4776,11 +5137,14 @@ class _Win11NavRowState extends State<_Win11NavRow> {
   }
 }
 
-/// Windows 11 hover row for footer
 class _Win11HoverRow extends StatefulWidget {
   final Widget child;
   final bool isExpanded;
-  const _Win11HoverRow({required this.child, required this.isExpanded});
+
+  const _Win11HoverRow({
+    required this.child,
+    required this.isExpanded,
+  });
 
   @override
   State<_Win11HoverRow> createState() => _Win11HoverRowState();
@@ -4795,16 +5159,42 @@ class _Win11HoverRowState extends State<_Win11HoverRow> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
+        duration: const Duration(milliseconds: 160),
         padding: EdgeInsets.symmetric(
-          horizontal: widget.isExpanded ? 8.w : 4.w,
-          vertical: 6.h,
+          horizontal: widget.isExpanded ? 10.w : 0,
+          vertical: 8.h,
         ),
         decoration: BoxDecoration(
-          color: _hovered ? Win11Colors.hover : Colors.transparent,
-          borderRadius: BorderRadius.circular(4.r),
+          color: _hovered
+              ? const Color(0xFF1E2130)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10.r),
         ),
-        child: Center(child: widget.child),
+        child: widget.isExpanded
+            ? widget.child
+            : Center(child: widget.child),
+      ),
+    );
+  }
+}
+class _ActivePill extends StatelessWidget {
+  final bool isActive;
+  final Color color;
+  const _ActivePill({required this.isActive, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      width: isActive ? 3.w : 0,
+      height: isActive ? 20.h : 0,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(2.r),
+        boxShadow: isActive
+            ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)]
+            : [],
       ),
     );
   }
