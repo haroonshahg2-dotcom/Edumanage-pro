@@ -3432,32 +3432,38 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           .collection('attendance')
           .doc(today)
           .collection('summaries')
-          .snapshots(),
+          .snapshots(), // ← Real-time listener; auto-updates on any change
       builder: (context, snapshot) {
         int totalStudents = 0;
-        int totalPresent = 0;
+        int totalPresent  = 0;
+        int totalAbsent   = 0;
+        int totalLate     = 0;
 
-        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+        if (snapshot.hasData) {
           for (final doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             totalStudents += (data['totalStudents'] ?? 0) as int;
             totalPresent  += (data['present']       ?? 0) as int;
+            totalAbsent   += (data['absent']        ?? 0) as int;
+            totalLate     += (data['late']          ?? 0) as int;
           }
         }
 
-        final bool isLoading = !snapshot.hasData;
-        final double pct = totalStudents > 0
+        final bool   isLoading = !snapshot.hasData;
+        final double pct       = totalStudents > 0
             ? (totalPresent / totalStudents * 100)
             : 0.0;
-        final String trendStr =
-        totalStudents > 0 ? '${pct.toStringAsFixed(1)}%' : '--';
+        final String pctStr    = totalStudents > 0
+            ? '${pct.toStringAsFixed(1)}%'
+            : '--';
+
+        // Color based on attendance rate
         final Color pctColor = pct >= 90
             ? _accentSuccess
             : pct >= 75
             ? _accentWarning
             : _accentDanger;
 
-        // 🎨 HOVER glow on attendance card
         return _HoverCard(
           scaleUp: 1.025,
           glowColor: _accentWarning,
@@ -3471,9 +3477,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               border: Border.all(color: _border),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4))
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: isLoading
@@ -3482,6 +3489,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // ── Top row: icon + percentage badge ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -3491,56 +3499,96 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         color: _accentWarning.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12.r),
                       ),
-                      child: Icon(Icons.fact_check,
-                          color: _accentWarning, size: 24.sp),
+                      child: Icon(
+                        Icons.fact_check,
+                        color: _accentWarning,
+                        size: 24.sp,
+                      ),
                     ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 8.w, vertical: 4.h),
-                      decoration: BoxDecoration(
-                        color: pctColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20.r),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.people_alt_outlined,
-                              color: pctColor, size: 12.sp),
-                          SizedBox(width: 4.w),
-                          Text(trendStr,
-                              style: TextStyle(
-                                  color: pctColor,
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w600)),
-                        ],
-                      ),
+                    // Live indicator dot
+                    Row(
+                      children: [
+                        _PulseWidget(
+                          color: pctColor,
+                          child: Container(
+                            width: 8.w,
+                            height: 8.w,
+                            decoration: BoxDecoration(
+                              color: pctColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 4.h),
+                          decoration: BoxDecoration(
+                            color: pctColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            pctStr,
+                            style: TextStyle(
+                              color: pctColor,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+
+                SizedBox(height: 12.h),
+
+                // ── Main number: present count ──
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🎨 ANIMATED COUNTER
                     totalStudents > 0
                         ? _AnimatedCounter(
-                        value: totalPresent,
-                        style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w800))
-                        : Text('--',
-                        style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w800)),
+                      value: totalPresent,
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                        : Text(
+                      '--',
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     SizedBox(height: 4.h),
-                    Text('Attendance Today',
-                        style: TextStyle(
-                            color: _textSecondary,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500)),
+                    Text(
+                      'Attendance Today',
+                      style: TextStyle(
+                        color: _textSecondary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
+
+                SizedBox(height: 12.h),
+
+                // ── Bottom row: P / A / L breakdown ──
+                if (totalStudents > 0)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _attendancePill('P', totalPresent, _accentSuccess),
+                      _attendancePill('A', totalAbsent,  _accentDanger),
+                      _attendancePill('L', totalLate,    _accentWarning),
+                      _attendancePill('/', totalStudents, _textMuted),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -3549,45 +3597,78 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
+// Helper pill widget for the P/A/L row
+  Widget _attendancePill(String label, int value, Color color) {
+    return Column(
+      children: [
+        Text(
+          '$value',
+          style: TextStyle(
+            color: color,
+            fontSize: 14.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: _textMuted,
+            fontSize: 10.sp,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildEnhancedStatsGrid() {
+    // Students & Teachers still use the original generic card
     final stats = [
       {
-        'title': 'Total Students',
+        'title':      'Total Students',
         'collection': 'students',
-        'icon': Icons.people,
-        'color': _primary,
-        'trend': '+12%',
+        'icon':       Icons.people,
+        'color':      _primary,
+        'trend':      '+12%',
       },
       {
-        'title': 'Teachers',
+        'title':      'Teachers',
         'collection': 'teachers',
-        'icon': Icons.school,
-        'color': _accentSuccess,
-        'trend': '+5%',
-      },
-      {
-        'title': 'Fee Collection',
-        'collection': 'fees',
-        'icon': Icons.account_balance_wallet,
-        'color': _accentInfo,
-        'trend': '+8%',
+        'icon':       Icons.school,
+        'color':      _accentSuccess,
+        'trend':      '+5%',
       },
     ];
 
+    // These two are now real-time dedicated widgets
+    final feeCard        = _buildFeeCollectionCard();
     final attendanceCard = _buildAttendanceTodayCard();
 
     if (isMobile) {
       return Column(
         children: [
-          ...stats.asMap().entries.map((e) => _StaggeredItem(
-            index: e.key,
+          _StaggeredItem(
+            index: 0,
             child: Padding(
               padding: EdgeInsets.only(bottom: 12.h),
-              child: _buildEnhancedStatCard(e.value),
+              child: _buildEnhancedStatCard(stats[0]), // ← original method, still exists
             ),
-          )),
+          ),
           _StaggeredItem(
-            index: stats.length,
+            index: 1,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: _buildEnhancedStatCard(stats[1]), // ← original method, still exists
+            ),
+          ),
+          _StaggeredItem(
+            index: 2,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 12.h),
+              child: feeCard,
+            ),
+          ),
+          _StaggeredItem(
+            index: 3,
             child: Padding(
               padding: EdgeInsets.only(bottom: 12.h),
               child: attendanceCard,
@@ -3605,12 +3686,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       mainAxisSpacing: 20.h,
       childAspectRatio: 1.5,
       children: [
-        ...stats.asMap().entries.map((e) =>
-            _StaggeredItem(index: e.key, child: _buildEnhancedStatCard(e.value))),
-        _StaggeredItem(index: stats.length, child: attendanceCard),
+        _StaggeredItem(index: 0, child: _buildEnhancedStatCard(stats[0])), // Students
+        _StaggeredItem(index: 1, child: _buildEnhancedStatCard(stats[1])), // Teachers
+        _StaggeredItem(index: 2, child: feeCard),                           // Fee RT
+        _StaggeredItem(index: 3, child: attendanceCard),                    // Attendance RT
       ],
     );
   }
+
 
   Widget _buildEnhancedStatCard(Map<String, dynamic> stat) {
     final collection = stat['collection'] as String;
@@ -3709,6 +3792,206 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFeeCollectionCard() {
+    final currentMonth = _getCurrentMonthYear(); // e.g. "2025-06"
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('feePayments')
+          .snapshots(), // ← Real-time listener on entire feePayments collection
+      builder: (context, snapshot) {
+        double totalCollected = 0;
+        double monthCollected = 0;
+        int    totalPayments  = 0;
+        int    pendingCount   = 0;
+
+        if (snapshot.hasData) {
+          for (final doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+
+            final double amount = (data['amount'] ?? data['paidAmount'] ?? 0)
+                .toDouble();
+            final String status = (data['status'] ?? '').toString().toLowerCase();
+            final Timestamp? paidAt =
+                data['paidAt'] ?? data['paymentDate'] ?? data['createdAt'];
+
+            // Overall total (paid/partial only)
+            if (status == 'paid' || status == 'partial') {
+              totalCollected += amount;
+              totalPayments++;
+            }
+
+            // Pending count
+            if (status == 'pending' || status == 'overdue') {
+              pendingCount++;
+            }
+
+            // This month's collection
+            if (paidAt != null) {
+              final date = paidAt.toDate();
+              final monthKey =
+                  '${date.year}-${date.month.toString().padLeft(2, '0')}';
+              if (monthKey == currentMonth &&
+                  (status == 'paid' || status == 'partial')) {
+                monthCollected += amount;
+              }
+            }
+          }
+        }
+
+        final bool   isLoading   = !snapshot.hasData;
+        final String totalStr    = 'Rs ${_formatCurrency(totalCollected)}';
+        final String monthStr    = 'Rs ${_formatCurrency(monthCollected)}';
+        final bool   isGoodMonth = monthCollected > 0;
+
+        return _HoverCard(
+          scaleUp: 1.025,
+          glowColor: _accentInfo,
+          enableGlow: true,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: isLoading
+                ? _buildStatShimmer()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // ── Top row: icon + month badge ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: _accentInfo.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet,
+                        color: _accentInfo,
+                        size: 24.sp,
+                      ),
+                    ),
+                    // Live pulse dot
+                    Row(
+                      children: [
+                        _PulseWidget(
+                          color: _accentInfo,
+                          child: Container(
+                            width: 8.w,
+                            height: 8.w,
+                            decoration: const BoxDecoration(
+                              color: _accentInfo,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 6.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 4.h),
+                          decoration: BoxDecoration(
+                            color: _accentSuccess.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20.r),
+                          ),
+                          child: Text(
+                            _getCurrentMonthName(),
+                            style: TextStyle(
+                              color: _accentSuccess,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 12.h),
+
+                // ── Main number: total collected ──
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      totalStr,
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Fee Collection',
+                      style: TextStyle(
+                        color: _textSecondary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 12.h),
+
+                // ── Bottom row: month / total / pending breakdown ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _feePill('This Month', monthStr,   _accentSuccess),
+                    _feePill('Payments',   '$totalPayments', _accentInfo),
+                    _feePill('Pending',    '$pendingCount',  _accentDanger),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Helper pill widget for fee breakdown
+  Widget _feePill(String label, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: _textMuted,
+            fontSize: 10.sp,
+          ),
+        ),
+      ],
     );
   }
 
