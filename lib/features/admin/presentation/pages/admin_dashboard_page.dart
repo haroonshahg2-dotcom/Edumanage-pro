@@ -1,5 +1,4 @@
 import 'package:edumanage/features/admin/presentation/pages/salary_module.dart';
-//import 'package:edumanage/features/admin/presentation/pages/screens/attendance_dashbaord.dart';
 import 'package:edumanage/features/admin/presentation/pages/setting_module.dart';
 import 'package:edumanage/features/admin/presentation/pages/teacher_module.dart';
 import 'package:flutter/material.dart';
@@ -9,27 +8,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
-import '../../../../core/extensions/list_extensions.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import 'package:edumanage/features/admin/presentation/pages/exam_results_module.dart';
 import 'package:edumanage/features/admin/presentation/pages/student_module.dart';
 import 'package:rxdart/rxdart.dart';
-
 import 'attendance_module.dart';
 import 'fee_module.dart';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 🎨 ANIMATIONS & MOUSE EFFECT WIDGETS — purely visual, zero logic change
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 🎨 WINDOWS 11 FILE EXPLORER — GLOBAL COLORS
-// ═══════════════════════════════════════════════════════════════════════════
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// 🎨 WINDOWS 11 FILE EXPLORER — STATIC COLORS CLASS
-// ═══════════════════════════════════════════════════════════════════════════
 class Win11Colors {
   static const Color bg           = Color(0xFF1A1A1A);
   static const Color hover        = Color(0xFF2C2C2C);
@@ -446,11 +431,6 @@ class _GlowBorderCardState extends State<_GlowBorderCard>
   }
 }
 
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║  PASTE LOCATION A — OUTSIDE all classes (after _GlowBorderCard ends)   ║
-// ║  These are standalone data classes, not methods                         ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
-
 class _KpiData {
   final String title;
   final int value;
@@ -491,8 +471,6 @@ class _QuickAction {
     required this.onTap,
   });
 }
-
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD — all original code below, animations woven in
@@ -544,12 +522,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   int currentPage = 1;
   final int itemsPerPage = 10;
 
-  // ─── NAVY + WHITE + ELECTRIC BLUE PALETTE ─────────────────
-  // ─── DASHBOARD ──────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 MIDNIGHT SAAS — Layered Depth (Sidebar vs Dashboard)
-  // ═══════════════════════════════════════════════════════════════════════════
-
   // ─── SIDEBAR — Darkest (background layer) ─────────────────
   static const Color _sidebarBg        = Color(0xFF0B0D14);   // ← Darkest (was 0F1117)
   static const Color _sidebarElevated  = Color(0xFF151821);   // Hover state
@@ -584,8 +556,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   static const Color _primaryLight = Color(0xFF9AA5F3);
   static const Color _primaryDark  = Color(0xFF5E6BE8);
 
-
-
   // ─── FUNCTIONAL ───────────────────────────────────────────
   static const Color _accentSuccess = Color(0xFF3DD68B);
   static const Color _accentWarning = Color(0xFFF2A93B);
@@ -598,12 +568,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     "7A","7B","7C","8A","8B","8C","9A","9B","9C",
     "10A","10B","10C",
   ];
-
-
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 📋 SIDEBAR MENU DATA STRUCTURE
-  // ═══════════════════════════════════════════════════════════════════════════
 
   final Map<String, Color> _sectionAccentColors = {
     'main':          _accentIndigo,   // Soft Indigo
@@ -687,6 +651,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ],
     ),
   ];
+
   String _getCurrentMonthYear() {
     final now = DateTime.now();
     return "${now.year}-${now.month.toString().padLeft(2, '0')}";
@@ -1176,7 +1141,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         _buildProfileMenuItem('logout',   Icons.logout,            'Logout', color: _accentDanger),
       ],
       onSelected: (value) {
-        if (value == 'logout') _handleLogout();
+        if (value == 'logout'){
+          Text("Are you sure to logout:");
+          _handleLogout();
+        }
       },
     );
   }
@@ -1195,23 +1163,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
-
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 PROFESSIONAL SIDEBAR
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 FLUENT SIDEBAR — matches windows11_fluent_sidebar.html exactly
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // ═══════════════════════════════════════════════════════════════════════════
-// 🎨 WINDOWS 11 FILE EXPLORER SIDEBAR — matches screenshot exactly
-// ═══════════════════════════════════════════════════════════════════════════
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 WINDOWS 11 FILE EXPLORER SIDEBAR — matches screenshot exactly
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildProfessionalSidebar() {
     return AnimatedContainer(
@@ -1377,7 +1328,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
   // ── Collapsible search bar ──────────────────────────────────────────────
   Widget _buildSidebarSearch() {
     if (!isSidebarOpen) return const SizedBox.shrink();
@@ -1426,7 +1376,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
   // ── Section block ───────────────────────────────────────────────────────
   Widget _buildSidebarSection(_SidebarSection section, int sectionIndex) {
     final accentColor = _sectionAccentColors[section.key] ?? _accentIndigo;
@@ -1488,7 +1437,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
   // ── Single menu item ────────────────────────────────────────────────────
   Widget _buildSidebarMenuItem({
     required _SidebarItem item,
@@ -1824,12 +1772,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-// ═══════════════════════════════════════════════════════════════════════════
-// END OF SIDEBAR REDESIGN
-// ═══════════════════════════════════════════════════════════════════════════
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 PROFESSIONAL DRAWER (Mobile)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildProfessionalDrawer() {
     return Drawer(
@@ -2499,6 +2441,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       },
     );
   }
+
   Widget _buildKpiCard(_KpiData data) {
     return _HoverCard(
       glowColor: data.color,
@@ -2619,12 +2562,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  // ─── BLOCK 3: Charts ──────────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════
-// 📦 BLOCK 3 — CHARTS ROW (attendance + fee collection)
-// Paste these methods inside _AdminDashboardPageState
-// ═══════════════════════════════════════════════════════════════════════════
-
   Widget _buildChartsRow() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2649,7 +2586,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       },
     );
   }
-
 // ── ATTENDANCE BAR CHART ──────────────────────────────────────────────────
   Widget _buildAttendanceChart() {
     return _GlowBorderCard(
@@ -2864,7 +2800,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
 // ── FEE DONUT CHART ───────────────────────────────────────────────────────
   Widget _buildFeeDonutChart() {
     return _GlowBorderCard(
@@ -3023,13 +2958,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
-
-  // ─── BLOCK 4: Activity + Quick Actions ────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════════════
-// 📦 BLOCK 4 — RECENT ACTIVITY + QUICK ACTIONS
-// Paste these methods inside _AdminDashboardPageState
-// ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildBottomRow() {
     return LayoutBuilder(
@@ -3242,7 +3170,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
 // ── QUICK ACTIONS ─────────────────────────────────────────────────────────
   Widget _buildQuickActionsCard() {
     final actions = [
@@ -3317,6 +3244,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
+
   Widget _buildQuickActionTile(_QuickAction action) {
     return Padding(
       padding: EdgeInsets.only(bottom: 8.h),
@@ -3375,6 +3303,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
+
   Widget _buildSectionLabel(String title, IconData icon, Color color) {
     return Row(
       children: [
@@ -3422,10 +3351,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-
-  // ────────────────────────────────────────────────────────────────────────────
-// STEP 1 — Replace _buildAttendanceTodayCard()
-// ────────────────────────────────────────────────────────────────────────────
   Widget _buildAttendanceTodayCard() {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     // Confirmed from screenshot: date doc = "2026-06-25", summaries has 1A, 2A, 3A, 4A
@@ -3590,7 +3515,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     ],
   );
 
-
   Widget _buildEnhancedStatsGrid() {
     // Students + Teachers still use the generic counter (correct collections)
     final stats = [
@@ -3647,35 +3571,69 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Widget _buildRealFeeCard() {
     final currentMonth = _getCurrentMonthYear();
+    final path = 'schools/${widget.schoolId}/feePayments';
+
+    print('🔵 FEE STREAM STARTING — path: $path');
+    print('🔵 schoolId = ${widget.schoolId}');
+    print('🔵 currentMonth = $currentMonth');
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
-          .collection('feePayments') // ✅ YOUR actual collection name
+          .collection('feePayments')
           .snapshots(),
       builder: (context, snapshot) {
-        double total = 0;
+        // ── DEBUG: print every state change ──
+        print('💰 FEE snapshot state: ${snapshot.connectionState}');
+        if (snapshot.hasError) print('❌ FEE ERROR: ${snapshot.error}');
+        if (snapshot.hasData)  print('✅ FEE docs count: ${snapshot.data!.docs.length}');
+
+        double total     = 0;
         double thisMonth = 0;
-        int    receipts = 0;
+        int    receipts  = 0;
 
         if (snapshot.hasData) {
           for (final doc in snapshot.data!.docs) {
             final d = doc.data() as Map<String, dynamic>;
+            print('📄 FEE doc: ${doc.id} | amount=${d['amount']} | paymentDate=${d['paymentDate']}');
 
-            // ✅ YOUR field: 'amount' (number, e.g. 1000)
             final double amt = ((d['amount'] ?? 0) as num).toDouble();
             total += amt;
             receipts++;
 
-            // ✅ YOUR field: 'paymentDate' (Timestamp)
             final ts = d['paymentDate'] as Timestamp?;
             if (ts != null) {
               final dt = ts.toDate();
               final mk = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
+              print('📅 FEE doc month: $mk | currentMonth: $currentMonth | match: ${mk == currentMonth}');
               if (mk == currentMonth) thisMonth += amt;
             }
           }
+          print('💰 FEE TOTAL: $total | THIS MONTH: $thisMonth | RECEIPTS: $receipts');
+        }
+
+        // Show error state
+        if (snapshot.hasError) {
+          return Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _accentDanger),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: _accentDanger, size: 28.sp),
+                SizedBox(height: 8.h),
+                Text('Fee Error', style: TextStyle(color: _accentDanger, fontSize: 13.sp)),
+                Text('${snapshot.error}',
+                    style: TextStyle(color: _textMuted, fontSize: 10.sp),
+                    maxLines: 3, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          );
         }
 
         final bool loading = snapshot.connectionState == ConnectionState.waiting;
@@ -3696,7 +3654,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -3709,10 +3666,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     child: Icon(Icons.account_balance_wallet,
                         color: _accentInfo, size: 22.sp),
                   ),
-                  // Live badge
                   Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 4.h),
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                     decoration: BoxDecoration(
                       color: _accentSuccess.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20.r),
@@ -3723,45 +3678,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         child: Container(
                           width: 6.w, height: 6.w,
                           decoration: const BoxDecoration(
-                              color: _accentSuccess,
-                              shape: BoxShape.circle),
+                              color: _accentSuccess, shape: BoxShape.circle),
                         ),
                       ),
                       SizedBox(width: 4.w),
-                      Text('Live',
-                          style: TextStyle(
-                              color: _accentSuccess,
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w600)),
+                      Text('Live', style: TextStyle(
+                          color: _accentSuccess, fontSize: 11.sp,
+                          fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 ],
               ),
               SizedBox(height: 10.h),
-              // Main value
-              Text(
-                'Rs ${_formatCurrency(total)}',
-                style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.w800),
-              ),
+              Text('Rs ${_formatCurrency(total)}',
+                  style: TextStyle(color: _textPrimary,
+                      fontSize: 24.sp, fontWeight: FontWeight.w800)),
               Text('Fee Collection',
-                  style: TextStyle(
-                      color: _textSecondary,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500)),
+                  style: TextStyle(color: _textSecondary,
+                      fontSize: 13.sp, fontWeight: FontWeight.w500)),
               SizedBox(height: 8.h),
-              // Subtitle row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('This month: Rs ${_formatCurrency(thisMonth)}',
-                      style: TextStyle(
-                          color: _accentSuccess, fontSize: 11.sp)),
+                      style: TextStyle(color: _accentSuccess, fontSize: 11.sp)),
                   Text('$receipts receipts',
-                      style: TextStyle(
-                          color: _textMuted, fontSize: 11.sp)),
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
                 ],
               ),
             ],
@@ -3771,11 +3713,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-
-// ── REAL ATTENDANCE CARD ───────────────────────────────────────────────────
   Widget _buildRealAttendanceCard() {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    // ✅ YOUR path: attendance/{2026-06-25}/summaries/{1A, 2A, 3A, 4A}
+    final path  = 'schools/${widget.schoolId}/attendance/$today/summaries';
+
+    print('🔵 ATTENDANCE STREAM STARTING — path: $path');
+    print('🔵 today = $today');
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -3783,9 +3726,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           .doc(widget.schoolId)
           .collection('attendance')
           .doc(today)
-          .collection('summaries') // ✅ YOUR subcollection
+          .collection('summaries')
           .snapshots(),
       builder: (context, snapshot) {
+        // ── DEBUG: print every state change ──
+        print('📋 ATT snapshot state: ${snapshot.connectionState}');
+        if (snapshot.hasError) print('❌ ATT ERROR: ${snapshot.error}');
+        if (snapshot.hasData)  print('✅ ATT docs count: ${snapshot.data!.docs.length}');
+
         int total   = 0;
         int present = 0;
         int absent  = 0;
@@ -3793,11 +3741,36 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         if (snapshot.hasData) {
           for (final doc in snapshot.data!.docs) {
             final d = doc.data() as Map<String, dynamic>;
-            // ✅ YOUR fields: totalStudents, present, absent
+            print('📄 ATT doc: ${doc.id} | totalStudents=${d['totalStudents']} | present=${d['present']} | absent=${d['absent']}');
             total   += (d['totalStudents'] ?? 0) as int;
             present += (d['present']       ?? 0) as int;
             absent  += (d['absent']        ?? 0) as int;
           }
+          print('📋 ATT TOTAL: $total | PRESENT: $present | ABSENT: $absent');
+        }
+
+        // Show error state
+        if (snapshot.hasError) {
+          return Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _accentDanger),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, color: _accentDanger, size: 28.sp),
+                SizedBox(height: 8.h),
+                Text('Attendance Error',
+                    style: TextStyle(color: _accentDanger, fontSize: 13.sp)),
+                Text('${snapshot.error}',
+                    style: TextStyle(color: _textMuted, fontSize: 10.sp),
+                    maxLines: 3, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          );
         }
 
         final bool   loading = snapshot.connectionState == ConnectionState.waiting;
@@ -3822,7 +3795,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -3835,10 +3807,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                     child: Icon(Icons.fact_check,
                         color: _accentWarning, size: 22.sp),
                   ),
-                  // Percentage badge
                   Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 4.h),
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                     decoration: BoxDecoration(
                       color: pctCol.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20.r),
@@ -3853,46 +3823,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         ),
                       ),
                       SizedBox(width: 4.w),
-                      Text(pctStr,
-                          style: TextStyle(
-                              color: pctCol,
-                              fontSize: 11.sp,
-                              fontWeight: FontWeight.w700)),
+                      Text(pctStr, style: TextStyle(
+                          color: pctCol, fontSize: 11.sp,
+                          fontWeight: FontWeight.w700)),
                     ]),
                   ),
                 ],
               ),
               SizedBox(height: 10.h),
-              // Main value
               total > 0
                   ? _AnimatedCounter(
                   value: present,
-                  style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w800))
-                  : Text('--',
-                  style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 24.sp,
-                      fontWeight: FontWeight.w800)),
+                  style: TextStyle(color: _textPrimary,
+                      fontSize: 24.sp, fontWeight: FontWeight.w800))
+                  : Text('--', style: TextStyle(color: _textPrimary,
+                  fontSize: 24.sp, fontWeight: FontWeight.w800)),
               Text('Attendance Today',
-                  style: TextStyle(
-                      color: _textSecondary,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w500)),
+                  style: TextStyle(color: _textSecondary,
+                      fontSize: 13.sp, fontWeight: FontWeight.w500)),
               SizedBox(height: 8.h),
-              // Subtitle row
               if (total > 0)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Absent: $absent',
-                        style: TextStyle(
-                            color: _accentDanger, fontSize: 11.sp)),
+                        style: TextStyle(color: _accentDanger, fontSize: 11.sp)),
                     Text('Total: $total',
-                        style: TextStyle(
-                            color: _textMuted, fontSize: 11.sp)),
+                        style: TextStyle(color: _textMuted, fontSize: 11.sp)),
                   ],
                 ),
             ],
@@ -3901,8 +3858,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       },
     );
   }
-
-
 
   Widget _buildEnhancedStatCard(Map<String, dynamic> stat) {
     final collection = stat['collection'] as String;
@@ -4330,11 +4285,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         }),
     ).toList();
 
-    // Combine all 6 streams into one list stream
+
     return Rx.combineLatestList<Map<String, dynamic>>(streams);
-    // ⚠️ Rx.combineLatestList requires: rxdart: ^0.27.0 in pubspec.yaml
-    // If you don't want rxdart, use the fallback below instead ↓
+
   }
+
   Widget _buildPeriodSelector(List<String> periods) {
     return Container(
       decoration: BoxDecoration(
@@ -4698,9 +4653,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  // ─── TEACHER MODULE ───────────────────────────────────────
-
-
   // ─── PLACEHOLDER MODULES ─────────────────────────────────
   Widget _analyticsModule()     => _comingSoon("Analytics");
   Widget _announcementsModule() => _comingSoon("Announcements");
@@ -4795,106 +4747,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _industrialTextField(
-      String label,
-      TextEditingController controller, {
-        TextInputType type = TextInputType.text,
-        String? hint,
-        Function(String)? onChanged,
-      }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: TextStyle(
-                color: _textSecondary,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w600)),
-        SizedBox(height: 8.h),
-        Container(
-          decoration: BoxDecoration(
-            color: _bgElevated,
-            borderRadius: BorderRadius.circular(10.r),
-            border: Border.all(color: _border),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: type,
-            onChanged: onChanged,
-            style: TextStyle(color: _textPrimary, fontSize: 14.sp),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle:
-              TextStyle(color: _textMuted, fontSize: 14.sp),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16.w, vertical: 14.h),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _industrialSearchField(
-      String hint,
-      TextEditingController controller, {
-        required Function(String) onChanged,
-      }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _bgElevated,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: _border),
-      ),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: TextStyle(color: _textPrimary, fontSize: 14.sp),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: _textMuted, fontSize: 14.sp),
-          prefixIcon:
-          Icon(Icons.search, color: _textMuted, size: 20.sp),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(
-              horizontal: 16.w, vertical: 14.h),
-        ),
-      ),
-    );
-  }
-
-  Widget _industrialChip({
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding:
-        EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? const LinearGradient(
-              colors: [_primary, _primaryLight])
-              : null,
-          color: isSelected ? null : _bgElevated,
-          borderRadius: BorderRadius.circular(8.r),
-          border: Border.all(
-              color:
-              isSelected ? Colors.transparent : _border),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                color: isSelected ? Colors.white : _textSecondary,
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w500)),
-      ),
-    );
-  }
-
   Widget _industrialButton(
       String label, {
         IconData? icon,
@@ -4954,18 +4806,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _industrialTextButton(String label,
-      {required VoidCallback onPressed}) {
-    return TextButton(
-      onPressed: onPressed,
-      child: Text(label,
-          style: TextStyle(
-              color: _primary,
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w600)),
-    );
-  }
-
   Widget _industrialIconButton(
       IconData icon, {
         Color? color,
@@ -4990,13 +4830,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         ),
       ),
     );
-  }
-
-  Widget _industrialActionButton(
-      IconData icon, Color color, VoidCallback onPressed) {
-    // 🎨 Route through _HoverIconButton for hover effect
-    return _HoverIconButton(
-        icon: icon, color: color, onPressed: onPressed);
   }
 
   void _showIndustrialSnackBar(String message,
@@ -5087,6 +4920,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
 
   Widget _buildShimmerList() {
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: 5,
       itemBuilder: (context, index) => Shimmer.fromColors(
         baseColor: _bgCard,
@@ -5134,18 +4969,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       ),
     );
   }
-
-  // ─── DRAWER & BOTTOM NAV ─────────────────────────────────
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🎨 PROFESSIONAL DRAWER — with active indicators & animations
-  // ═══════════════════════════════════════════════════════════════════════════
-
-
   // ═══════════════════════════════════════════════════════════════════════════
   // 🎨 PROFESSIONAL DRAWER — with Sections, Active Indicators & Animations
   // ═══════════════════════════════════════════════════════════════════════════
-
   Widget _buildEnhancedMobileBottomNav() {
     final items = [
       ("Dashboard", Icons.dashboard_outlined, Icons.dashboard),
@@ -5314,11 +5140,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     }
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 📋 SIDEBAR DATA MODELS
 // ═══════════════════════════════════════════════════════════════════════════
-
 class _SidebarSection {
   final String key;
   final String title;
