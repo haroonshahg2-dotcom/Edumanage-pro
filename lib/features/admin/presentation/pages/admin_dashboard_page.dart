@@ -3358,13 +3358,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     final stats = [
       {
         'title': 'Total Students', 'collection': 'students',
-        'icon': Icons.people,     'color': _primary,
-        'trend': '+12%',          'subtitle': 'enrolled this term',
+        'icon': Icons.people,      'color': _primary,
+        'trend': '+12%',           'subtitle': 'enrolled this term',
       },
       {
-        'title': 'Teachers',      'collection': 'teachers',
-        'icon': Icons.school,     'color': _accentSuccess,
-        'trend': '+5%',           'subtitle': 'active faculty',
+        'title': 'Teachers',       'collection': 'teachers',
+        'icon': Icons.school,      'color': _accentSuccess,
+        'trend': '+5%',            'subtitle': 'active faculty',
       },
     ];
 
@@ -3378,10 +3378,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             child: _buildEnhancedStatCard(stats[1]))),
         _StaggeredItem(index: 2, child: Padding(
             padding: EdgeInsets.only(bottom: 12.h),
-            child: _buildFeeStat())),          // ✅ real-time fee
+            child: _buildFeeStat())),
         _StaggeredItem(index: 3, child: Padding(
             padding: EdgeInsets.only(bottom: 12.h),
-            child: _buildAttendanceStat())),   // ✅ real-time attendance
+            child: _buildAttendanceStat())),
       ]);
     }
 
@@ -3395,11 +3395,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       children: [
         _StaggeredItem(index: 0, child: _buildEnhancedStatCard(stats[0])),
         _StaggeredItem(index: 1, child: _buildEnhancedStatCard(stats[1])),
-        _StaggeredItem(index: 2, child: _buildFeeStat()),         // ✅ real-time
-        _StaggeredItem(index: 3, child: _buildAttendanceStat()),  // ✅ real-time
+        _StaggeredItem(index: 2, child: _buildFeeStat()),        // ← fee
+        _StaggeredItem(index: 3, child: _buildAttendanceStat()), // ← attendance
       ],
     );
   }
+
 
 
 
@@ -3680,119 +3681,162 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   );
 
   Widget _buildFeeStat() {
-    final currentMonth = _getCurrentMonthYear(); // "2026-06"
+    // Your feePayments document fields (confirmed from screenshot):
+    //   amount       → number  (e.g. 1000)
+    //   paymentDate  → Timestamp
+    //   NO status field — every doc is a paid receipt
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('schools')
-          .doc(widget.schoolId)
-          .collection('feePayments') // ✅ your real collection
+          .doc(widget.schoolId)   // ← uses widget.schoolId directly
+          .collection('feePayments')
           .snapshots(),
       builder: (context, snap) {
-        double total = 0, month = 0;
-        int count = 0;
+        // ── Loading state ──
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _buildFeeCardShell(
+            child: _buildStatShimmer(),
+          );
+        }
+
+        // ── Error state ──
+        if (snap.hasError) {
+          return _buildFeeCardShell(
+            child: Center(
+              child: Text('Error: ${snap.error}',
+                  style: TextStyle(color: _accentDanger, fontSize: 12.sp)),
+            ),
+          );
+        }
+
+        // ── Data ──
+        double total = 0;
+        double thisMonth = 0;
+        int    count = 0;
+
+        final currentMonth = _getCurrentMonthYear(); // "2026-06"
+
         if (snap.hasData) {
           for (final doc in snap.data!.docs) {
             final d = doc.data() as Map<String, dynamic>;
+
+            // amount field
             final amt = ((d['amount'] ?? 0) as num).toDouble();
             total += amt;
             count++;
-            final ts = d['paymentDate'] as Timestamp?;
-            if (ts != null) {
-              final dt = ts.toDate();
+
+            // paymentDate field (Timestamp)
+            final raw = d['paymentDate'];
+            if (raw != null && raw is Timestamp) {
+              final dt = raw.toDate();
               final mk = '${dt.year}-${dt.month.toString().padLeft(2,'0')}';
-              if (mk == currentMonth) month += amt;
+              if (mk == currentMonth) thisMonth += amt;
             }
           }
         }
-        final loading = snap.connectionState == ConnectionState.waiting;
 
-        return _HoverCard(
-          scaleUp: 1.025,
-          glowColor: _accentInfo,
-          enableGlow: true,
-          borderRadius: BorderRadius.circular(16.r),
-          child: Container(
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: _border),
-              boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20, offset: const Offset(0, 4),
-              )],
-            ),
-            child: loading
-                ? _buildStatShimmer()
-                : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(10.w),
-                      decoration: BoxDecoration(
-                        color: _accentInfo.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Icon(Icons.account_balance_wallet,
-                          color: _accentInfo, size: 22.sp),
+        return _buildFeeCardShell(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(10.w),
+                    decoration: BoxDecoration(
+                      color: _accentInfo.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
-                    Row(children: [
-                      _PulseWidget(
-                        color: _accentSuccess,
-                        child: Container(
-                          width: 7.w, height: 7.w,
-                          decoration: const BoxDecoration(
-                              color: _accentSuccess,
-                              shape: BoxShape.circle),
-                        ),
+                    child: Icon(Icons.account_balance_wallet,
+                        color: _accentInfo, size: 22.sp),
+                  ),
+                  Row(children: [
+                    _PulseWidget(
+                      color: _accentSuccess,
+                      child: Container(
+                        width: 7.w, height: 7.w,
+                        decoration: const BoxDecoration(
+                            color: _accentSuccess, shape: BoxShape.circle),
                       ),
-                      SizedBox(width: 5.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 4.h),
-                        decoration: BoxDecoration(
-                          color: _accentSuccess.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20.r),
-                        ),
-                        child: Text(_getCurrentMonthName(),
-                            style: TextStyle(color: _accentSuccess,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600)),
+                    ),
+                    SizedBox(width: 5.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                      decoration: BoxDecoration(
+                        color: _accentSuccess.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20.r),
                       ),
-                    ]),
-                  ],
-                ),
-                SizedBox(height: 10.h),
-                Text('Rs ${_formatCurrency(total)}',
-                    style: TextStyle(color: _textPrimary,
-                        fontSize: 22.sp, fontWeight: FontWeight.w800)),
-                SizedBox(height: 4.h),
-                Text('Fee Collection',
-                    style: TextStyle(color: _textSecondary,
-                        fontSize: 13.sp, fontWeight: FontWeight.w500)),
-                SizedBox(height: 8.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('This month: Rs ${_formatCurrency(month)}',
-                        style: TextStyle(
-                            color: _accentSuccess, fontSize: 11.sp)),
-                    Text('$count receipts',
-                        style: TextStyle(
-                            color: _textMuted, fontSize: 11.sp)),
-                  ],
-                ),
-              ],
-            ),
+                      child: Text(_getCurrentMonthName(),
+                          style: TextStyle(color: _accentSuccess,
+                              fontSize: 11.sp, fontWeight: FontWeight.w600)),
+                    ),
+                  ]),
+                ],
+              ),
+
+              SizedBox(height: 10.h),
+
+              // Main value
+              Text(
+                'Rs ${_formatCurrency(total)}',
+                style: TextStyle(color: _textPrimary,
+                    fontSize: 22.sp, fontWeight: FontWeight.w800),
+              ),
+              Text('Fee Collection',
+                  style: TextStyle(color: _textSecondary,
+                      fontSize: 13.sp, fontWeight: FontWeight.w500)),
+
+              SizedBox(height: 8.h),
+
+              // Sub row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'Month: Rs ${_formatCurrency(thisMonth)}',
+                      style: TextStyle(color: _accentSuccess, fontSize: 11.sp),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text('$count receipts',
+                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                ],
+              ),
+            ],
           ),
         );
       },
     );
   }
+
+// Shell container for fee card (keeps consistent decoration)
+  Widget _buildFeeCardShell({required Widget child}) {
+    return _HoverCard(
+      scaleUp: 1.025,
+      glowColor: _accentInfo,
+      enableGlow: true,
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        padding: EdgeInsets.all(20.w),
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: _border),
+          boxShadow: [BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20, offset: const Offset(0, 4),
+          )],
+        ),
+        child: child,
+      ),
+    );
+  }
+
 
   Widget _buildRealAttendanceChart() {
     final now     = DateTime.now();
