@@ -2302,8 +2302,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+// 🔧 EXACT FIX — Replace _buildKpiCards() in your file
+//
+// Find this method (around line 2305) and replace the WHOLE method with this.
+// Two bugs fixed:
+//   1. Fee: was reading 'fees' collection → now reads 'feePayments'
+//   2. Attendance: was querying date field on wrong level → now reads
+//      attendance/{today}/summaries subcollection correctly
+// ═══════════════════════════════════════════════════════════════════════════
+
   Widget _buildKpiCards() {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
     return StreamBuilder<QuerySnapshot>(
+      // ── Students ──────────────────────────────────────────────────────────
       stream: FirebaseFirestore.instance
           .collection('schools')
           .doc(widget.schoolId)
@@ -2311,6 +2324,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
           .snapshots(),
       builder: (context, studentSnap) {
         return StreamBuilder<QuerySnapshot>(
+          // ── Teachers ────────────────────────────────────────────────────
           stream: FirebaseFirestore.instance
               .collection('schools')
               .doc(widget.schoolId)
@@ -2318,46 +2332,69 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               .snapshots(),
           builder: (context, teacherSnap) {
             return StreamBuilder<QuerySnapshot>(
+              // ── FIX 1: was 'fees' → correct path is 'feePayments' ────────
               stream: FirebaseFirestore.instance
                   .collection('schools')
                   .doc(widget.schoolId)
-                  .collection('fees')
+                  .collection('feePayments')   // ✅ FIXED
                   .snapshots(),
               builder: (context, feeSnap) {
                 return StreamBuilder<QuerySnapshot>(
+                  // ── FIX 2: was querying wrong level → now reads
+                  //    attendance/{today}/summaries subcollection ────────────
                   stream: FirebaseFirestore.instance
                       .collection('schools')
                       .doc(widget.schoolId)
                       .collection('attendance')
-                      .where('date', isEqualTo: _getCurrentMonthYear())
+                      .doc(today)               // ✅ FIXED: today's date doc
+                      .collection('summaries')  // ✅ FIXED: subcollection
                       .snapshots(),
                   builder: (context, attSnap) {
+
                     final students = studentSnap.data?.docs.length ?? 0;
                     final teachers = teacherSnap.data?.docs.length ?? 0;
 
+                    // ── Fee calculation ──────────────────────────────────
                     double totalFees = 0;
-                    double paidFees = 0;
+                    double paidFees  = 0;
                     if (feeSnap.hasData) {
                       for (var doc in feeSnap.data!.docs) {
-                        final d = doc.data() as Map<String, dynamic>;
-                        totalFees += (d['totalAmount'] ?? 0).toDouble();
-                        paidFees  += (d['paidAmount']  ?? 0).toDouble();
+                        final d      = doc.data() as Map<String, dynamic>;
+                        final amount = ((d['amount']      ?? d['totalAmount'] ?? d['feeAmount'] ?? 0) as num).toDouble();
+                        final paid   = ((d['paidAmount']  ?? d['amountPaid']  ?? 0) as num).toDouble();
+                        final status = (d['status'] ?? d['paymentStatus'] ?? '').toString().toLowerCase();
+
+                        totalFees += amount;
+
+                        if (status == 'paid' || status == 'complete' || status == 'completed') {
+                          paidFees += amount;
+                        } else if (status == 'partial') {
+                          paidFees += paid;
+                        } else if (status == 'pending' || status == 'unpaid') {
+                          // don't add to paid
+                        } else {
+                          // no status — use paidAmount if present
+                          paidFees += paid > 0 ? paid : amount;
+                        }
                       }
                     }
 
-                    int presentCount = 0;
-                    int totalAtt = 0;
+                    // ── Attendance calculation ───────────────────────────
+                    // Reads exact field names from your Firestore:
+                    // { totalStudents, present, absent, late, leave }
+                    int totalStudents = 0;
+                    int presentCount  = 0;
                     if (attSnap.hasData) {
                       for (var doc in attSnap.data!.docs) {
                         final d = doc.data() as Map<String, dynamic>;
-                        final records = d['records'] as Map<String, dynamic>? ?? {};
-                        presentCount += records.values.where((v) => v == 'present').length;
-                        totalAtt += records.length;
+                        totalStudents += ((d['totalStudents'] ?? 0) as num).toInt();
+                        presentCount  += ((d['present']       ?? 0) as num).toInt();
                       }
                     }
-                    final attPct = totalAtt > 0
-                        ? ((presentCount / totalAtt) * 100).toStringAsFixed(1)
+                    final attPct = totalStudents > 0
+                        ? ((presentCount / totalStudents) * 100).toStringAsFixed(1)
                         : '0.0';
+                    final attDouble = double.tryParse(attPct) ?? 0.0;
 
                     final cards = [
                       _KpiData(
@@ -2394,20 +2431,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
                         trend: totalFees > 0
                             ? '${((paidFees / totalFees) * 100).toStringAsFixed(0)}%'
                             : '0%',
-                        trendUp: paidFees >= (totalFees * 0.7),
-                        subtitle: 'of ₨${_formatCurrency(totalFees)} target',
+                        trendUp: paidFees >= (totalFees * 0.5),
+                        subtitle: 'of ₨${_formatCurrency(totalFees)} total',
                         route: 'Fees',
                       ),
                       _KpiData(
                         title: 'Attendance',
                         value: 0,
-                        valueStr: '$attPct%',
+                        valueStr: totalStudents > 0 ? '$attPct%' : '--',
                         icon: Icons.fact_check_rounded,
                         color: const Color(0xFFF2A93B),
                         bgGradient: [const Color(0xFF2A2010), const Color(0xFF161922)],
-                        trend: '+${(double.parse(attPct) - 85.0).toStringAsFixed(1)}%',
-                        trendUp: double.parse(attPct) >= 85,
-                        subtitle: 'this month avg',
+                        trend: totalStudents > 0
+                            ? '$attPct%'
+                            : 'No data',
+                        trendUp: attDouble >= 75,
+                        subtitle: totalStudents > 0
+                            ? '$presentCount / $totalStudents today'
+                            : 'No records today',
                         route: 'Attendance',
                       ),
                     ];
@@ -2573,7 +2614,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             // ── Attendance bar chart ──────────────────────────────────
             Flexible(
               flex: 3,
-              child: _buildAttendanceChart(),
+              child: _buildAttendanceChartCard(),
             ),
             SizedBox(width: isNarrow ? 0 : 14.w, height: isNarrow ? 14.h : 0),
             // ── Fee donut chart ────────────────────────────────────────
@@ -2587,190 +2628,140 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 // ── ATTENDANCE BAR CHART ──────────────────────────────────────────────────
-  Widget _buildAttendanceChart() {
+  Widget _buildAttendanceChartCard() {
+    final now   = DateTime.now();
+    final days  = List.generate(7, (i) => now.subtract(Duration(days: 6 - i)));
+    final ids   = days.map((d) => DateFormat('yyyy-MM-dd').format(d)).toList();
+    final labels= days.map((d) => DateFormat('E').format(d)).toList();
+
     return _GlowBorderCard(
-      baseColor: const Color(0xFF7C8CF0),
-      child: Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          color: const Color(0xFF161922),
-          borderRadius: BorderRadius.circular(16.r),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      baseColor: _primary,
+      child: _industrialChartCard(
+        title: 'Attendance Overview',
+        subtitle: 'Last 7 days · Live',
+        child: SizedBox(
+          height: isMobile ? 200.h : 260.h,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            // Fetch all 7 days once, then each StreamBuilder handles live updates.
+            // For simplicity we use a single-pass async fetch here.
+            future: _fetchWeekAttendance(ids),
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return Center(child: CircularProgressIndicator(
+                    color: _primary, strokeWidth: 2));
+              }
+              final data = snap.data!;
+              final hasAny = data.any((d) => (d['total'] as int) > 0);
+              if (!hasAny) {
+                return Center(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Attendance Overview',
-                      style: TextStyle(
-                        color: const Color(0xFFEEF1F8),
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 2.h),
-                    Text(
-                      'Last 7 days',
-                      style: TextStyle(
-                          color: const Color(0xFF5A6072), fontSize: 11.sp),
-                    ),
+                    Icon(Icons.bar_chart, color: _textMuted, size: 36.sp),
+                    SizedBox(height: 8.h),
+                    Text('No attendance data yet',
+                        style: TextStyle(color: _textSecondary, fontSize: 13.sp)),
                   ],
+                ));
+              }
+              return BarChart(BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: 100,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (g, gi, r, ri) => BarTooltipItem(
+                      '${r.toY.toStringAsFixed(0)}%',
+                      TextStyle(color: Colors.white,
+                          fontWeight: FontWeight.bold, fontSize: 12.sp),
+                    ),
+                  ),
                 ),
-                Row(
-                  children: [
-                    _legendDot(const Color(0xFF7C8CF0), 'Present'),
-                    SizedBox(width: 12.w),
-                    _legendDot(const Color(0xFFF2657A), 'Absent'),
-                  ],
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(sideTitles: SideTitles(
+                    showTitles: true, interval: 25, reservedSize: 36,
+                    getTitlesWidget: (v, _) => Text('${v.toInt()}%',
+                        style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+                  )),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (v, _) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= labels.length) return const SizedBox();
+                      return Padding(
+                        padding: EdgeInsets.only(top: 6.h),
+                        child: Text(labels[i],
+                            style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+                      );
+                    },
+                  )),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles:   AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
-              ],
-            ),
-            SizedBox(height: 20.h),
-            // Chart
-            SizedBox(
-              height: 160.h,
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('schools')
-                    .doc(widget.schoolId)
-                    .collection('attendance')
-                    .orderBy('date', descending: true)
-                    .limit(7)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return _buildShimmerChart();
-                  }
-                  final docs = snapshot.data!.docs;
-                  final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-                  // Build bar groups from real data or placeholders
-                  List<BarChartGroupData> barGroups = [];
-                  for (int i = 0; i < 7; i++) {
-                    double present = 0, absent = 0;
-                    if (i < docs.length) {
-                      final d = docs[i].data() as Map<String, dynamic>;
-                      final records = d['records'] as Map<String, dynamic>? ?? {};
-                      present = records.values
-                          .where((v) => v == 'present')
-                          .length
-                          .toDouble();
-                      absent = records.values
-                          .where((v) => v == 'absent')
-                          .length
-                          .toDouble();
-                    } else {
-                      // Placeholder data so chart always looks full
-                      present = (60 + i * 3).toDouble();
-                      absent  = (10 - i).clamp(2, 15).toDouble();
-                    }
-                    barGroups.add(BarChartGroupData(
-                      x: i,
-                      barsSpace: 4,
-                      barRods: [
-                        BarChartRodData(
-                          toY: present,
-                          width: 10.w,
-                          color: const Color(0xFF7C8CF0),
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(4.r)),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: (present + absent) * 1.15,
-                            color: const Color(0xFF1E212E),
-                          ),
-                        ),
-                        BarChartRodData(
-                          toY: absent,
-                          width: 10.w,
-                          color: const Color(0xFFF2657A),
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(4.r)),
-                        ),
-                      ],
-                    ));
-                  }
-
-                  return BarChart(
-                    BarChartData(
-                      barGroups: barGroups,
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: 20,
-                        getDrawingHorizontalLine: (_) => FlLine(
-                          color: const Color(0xFF2A2E3B),
-                          strokeWidth: 1,
-                          dashArray: [4, 4],
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 32.w,
-                            getTitlesWidget: (val, _) => Text(
-                              val.toInt().toString(),
-                              style: TextStyle(
-                                  color: const Color(0xFF5A6072),
-                                  fontSize: 9.sp),
-                            ),
-                          ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            getTitlesWidget: (val, _) => Padding(
-                              padding: EdgeInsets.only(top: 6.h),
-                              child: Text(
-                                days[val.toInt() % 7],
-                                style: TextStyle(
-                                    color: const Color(0xFF5A6072),
-                                    fontSize: 10.sp),
-                              ),
-                            ),
-                          ),
-                        ),
-                        rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
-                      ),
-                      barTouchData: BarTouchData(
-                        touchTooltipData: BarTouchTooltipData(
-                          getTooltipColor: (_) => const Color(0xFF1E212E),
-                          tooltipBorderRadius: BorderRadius.circular(8),                          getTooltipItem: (group, _, rod, rodIndex) {
-                            final label = rodIndex == 0 ? 'Present' : 'Absent';
-                            return BarTooltipItem(
-                              '$label\n${rod.toY.toInt()}',
-                              TextStyle(
-                                color: rodIndex == 0
-                                    ? const Color(0xFF7C8CF0)
-                                    : const Color(0xFFF2657A),
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            );
-                          },
-                        ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 25,
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: _border, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(data.length, (i) {
+                  final pct = (data[i]['pct'] as double).clamp(0.0, 100.0);
+                  final col = pct >= 90 ? _accentSuccess
+                      : pct >= 75 ? _accentWarning : _accentDanger;
+                  return BarChartGroupData(x: i, barRods: [
+                    BarChartRodData(
+                      toY: pct,
+                      width: isMobile ? 14.w : 20.w,
+                      borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(6.r)),
+                      gradient: LinearGradient(
+                        colors: [col.withOpacity(0.6), col],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
+                  ]);
+                }),
+              ));
+            },
+          ),
         ),
       ),
     );
   }
+
+// Fetches last 7 days attendance data
+  Future<List<Map<String, dynamic>>> _fetchWeekAttendance(
+      List<String> ids) async {
+    final results = <Map<String, dynamic>>[];
+    for (final dateId in ids) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('attendance')
+            .doc(dateId)
+            .collection('summaries')
+            .get();
+        int total = 0, present = 0;
+        for (final d in snap.docs) {
+          final m = d.data();
+          total   += (m['totalStudents'] ?? 0) as int;
+          present += (m['present']       ?? 0) as int;
+        }
+        results.add({
+          'dateId':  dateId,
+          'total':   total,
+          'present': present,
+          'pct':     total > 0 ? present / total * 100.0 : 0.0,
+        });
+      } catch (_) {
+        results.add({'dateId': dateId, 'total': 0, 'present': 0, 'pct': 0.0});
+      }
+    }
+    return results;
+  }
+
 
   Widget _legendDot(Color color, String label) {
     return Row(
@@ -3351,159 +3342,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildAttendanceTodayCard() {
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    // Confirmed from screenshot: date doc = "2026-06-25", summaries has 1A, 2A, 3A, 4A
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('attendance')
-          .doc(today)
-          .collection('summaries')
-          .snapshots(), // ✅ real-time — fires when any class attendance updates
-      builder: (context, snapshot) {
-        // Debug: print doc count to verify stream is working
-        // if (snapshot.hasData) print('Summaries docs: ${snapshot.data!.docs.length}');
-
-        int totalStudents = 0;
-        int totalPresent  = 0;
-        int totalAbsent   = 0;
-        int totalLate     = 0;
-
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            final d = doc.data() as Map<String, dynamic>;
-            // ✅ Exact field names from your Firestore screenshot
-            totalStudents += (d['totalStudents'] ?? 0) as int;
-            totalPresent  += (d['present']       ?? 0) as int;
-            totalAbsent   += (d['absent']        ?? 0) as int;
-            totalLate     += (d['late']          ?? 0) as int;
-            // 'leave' field also exists — add if needed:
-            // totalLate += (d['leave'] ?? 0) as int;
-          }
-        }
-
-        final bool   isLoading = snapshot.connectionState == ConnectionState.waiting;
-        final double pct = totalStudents > 0
-            ? totalPresent / totalStudents * 100 : 0.0;
-        final String pctStr = totalStudents > 0
-            ? '${pct.toStringAsFixed(1)}%' : '--';
-        final Color pctColor = pct >= 90
-            ? _accentSuccess : pct >= 75 ? _accentWarning : _accentDanger;
-
-        return _HoverCard(
-          scaleUp: 1.025,
-          glowColor: _accentWarning,
-          enableGlow: true,
-          borderRadius: BorderRadius.circular(16.r),
-          child: Container(
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: _border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: isLoading
-                ? _buildStatShimmer()
-                : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // ── Top row ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(10.w),
-                      decoration: BoxDecoration(
-                        color: _accentWarning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Icon(Icons.fact_check,
-                          color: _accentWarning, size: 24.sp),
-                    ),
-                    Row(children: [
-                      _PulseWidget(
-                        color: pctColor,
-                        child: Container(
-                          width: 8.w, height: 8.w,
-                          decoration: BoxDecoration(
-                              color: pctColor, shape: BoxShape.circle),
-                        ),
-                      ),
-                      SizedBox(width: 6.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 4.h),
-                        decoration: BoxDecoration(
-                          color: pctColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20.r),
-                        ),
-                        child: Text(pctStr,
-                            style: TextStyle(
-                                color: pctColor,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ]),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-
-                // ── Present count ──
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    totalStudents > 0
-                        ? _AnimatedCounter(
-                        value: totalPresent,
-                        style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w800))
-                        : Text('--',
-                        style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 28.sp,
-                            fontWeight: FontWeight.w800)),
-                    SizedBox(height: 4.h),
-                    Text('Attendance Today',
-                        style: TextStyle(
-                            color: _textSecondary,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500)),
-                  ],
-                ),
-
-                // ── P / A / L breakdown ──
-                if (totalStudents > 0) ...[
-                  SizedBox(height: 12.h),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _attPill('Present', totalPresent, _accentSuccess),
-                      _attPill('Absent',  totalAbsent,  _accentDanger),
-                      _attPill('Late',    totalLate,    _accentWarning),
-                      _attPill('Total',   totalStudents, _textMuted),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _attPill(String label, int value, Color color) => Column(
     children: [
@@ -3516,23 +3355,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   );
 
   Widget _buildEnhancedStatsGrid() {
-    // Students + Teachers still use the generic counter (correct collections)
     final stats = [
       {
-        'title':      'Total Students',
-        'collection': 'students',
-        'icon':       Icons.people,
-        'color':      _primary,
-        'trend':      '+12%',
-        'subtitle':   'enrolled this term',
+        'title': 'Total Students', 'collection': 'students',
+        'icon': Icons.people,     'color': _primary,
+        'trend': '+12%',          'subtitle': 'enrolled this term',
       },
       {
-        'title':      'Teachers',
-        'collection': 'teachers',
-        'icon':       Icons.school,
-        'color':      _accentSuccess,
-        'trend':      '+5%',
-        'subtitle':   'active faculty',
+        'title': 'Teachers',      'collection': 'teachers',
+        'icon': Icons.school,     'color': _accentSuccess,
+        'trend': '+5%',           'subtitle': 'active faculty',
       },
     ];
 
@@ -3546,10 +3378,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             child: _buildEnhancedStatCard(stats[1]))),
         _StaggeredItem(index: 2, child: Padding(
             padding: EdgeInsets.only(bottom: 12.h),
-            child: _buildRealFeeCard())),
+            child: _buildFeeStat())),          // ✅ real-time fee
         _StaggeredItem(index: 3, child: Padding(
             padding: EdgeInsets.only(bottom: 12.h),
-            child: _buildRealAttendanceCard())),
+            child: _buildAttendanceStat())),   // ✅ real-time attendance
       ]);
     }
 
@@ -3563,301 +3395,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
       children: [
         _StaggeredItem(index: 0, child: _buildEnhancedStatCard(stats[0])),
         _StaggeredItem(index: 1, child: _buildEnhancedStatCard(stats[1])),
-        _StaggeredItem(index: 2, child: _buildRealFeeCard()),
-        _StaggeredItem(index: 3, child: _buildRealAttendanceCard()),
+        _StaggeredItem(index: 2, child: _buildFeeStat()),         // ✅ real-time
+        _StaggeredItem(index: 3, child: _buildAttendanceStat()),  // ✅ real-time
       ],
     );
   }
 
-  Widget _buildRealFeeCard() {
-    final currentMonth = _getCurrentMonthYear();
-    final path = 'schools/${widget.schoolId}/feePayments';
 
-    print('🔵 FEE STREAM STARTING — path: $path');
-    print('🔵 schoolId = ${widget.schoolId}');
-    print('🔵 currentMonth = $currentMonth');
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('feePayments')
-          .snapshots(),
-      builder: (context, snapshot) {
-        // ── DEBUG: print every state change ──
-        print('💰 FEE snapshot state: ${snapshot.connectionState}');
-        if (snapshot.hasError) print('❌ FEE ERROR: ${snapshot.error}');
-        if (snapshot.hasData)  print('✅ FEE docs count: ${snapshot.data!.docs.length}');
-
-        double total     = 0;
-        double thisMonth = 0;
-        int    receipts  = 0;
-
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            final d = doc.data() as Map<String, dynamic>;
-            print('📄 FEE doc: ${doc.id} | amount=${d['amount']} | paymentDate=${d['paymentDate']}');
-
-            final double amt = ((d['amount'] ?? 0) as num).toDouble();
-            total += amt;
-            receipts++;
-
-            final ts = d['paymentDate'] as Timestamp?;
-            if (ts != null) {
-              final dt = ts.toDate();
-              final mk = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
-              print('📅 FEE doc month: $mk | currentMonth: $currentMonth | match: ${mk == currentMonth}');
-              if (mk == currentMonth) thisMonth += amt;
-            }
-          }
-          print('💰 FEE TOTAL: $total | THIS MONTH: $thisMonth | RECEIPTS: $receipts');
-        }
-
-        // Show error state
-        if (snapshot.hasError) {
-          return Container(
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: _accentDanger),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, color: _accentDanger, size: 28.sp),
-                SizedBox(height: 8.h),
-                Text('Fee Error', style: TextStyle(color: _accentDanger, fontSize: 13.sp)),
-                Text('${snapshot.error}',
-                    style: TextStyle(color: _textMuted, fontSize: 10.sp),
-                    maxLines: 3, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          );
-        }
-
-        final bool loading = snapshot.connectionState == ConnectionState.waiting;
-
-        return Container(
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: _bgCard,
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: _border),
-            boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20, offset: const Offset(0, 4))],
-          ),
-          child: loading
-              ? _buildStatShimmer()
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(10.w),
-                    decoration: BoxDecoration(
-                      color: _accentInfo.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Icon(Icons.account_balance_wallet,
-                        color: _accentInfo, size: 22.sp),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      color: _accentSuccess.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Row(children: [
-                      _PulseWidget(
-                        color: _accentSuccess,
-                        child: Container(
-                          width: 6.w, height: 6.w,
-                          decoration: const BoxDecoration(
-                              color: _accentSuccess, shape: BoxShape.circle),
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Text('Live', style: TextStyle(
-                          color: _accentSuccess, fontSize: 11.sp,
-                          fontWeight: FontWeight.w600)),
-                    ]),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10.h),
-              Text('Rs ${_formatCurrency(total)}',
-                  style: TextStyle(color: _textPrimary,
-                      fontSize: 24.sp, fontWeight: FontWeight.w800)),
-              Text('Fee Collection',
-                  style: TextStyle(color: _textSecondary,
-                      fontSize: 13.sp, fontWeight: FontWeight.w500)),
-              SizedBox(height: 8.h),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('This month: Rs ${_formatCurrency(thisMonth)}',
-                      style: TextStyle(color: _accentSuccess, fontSize: 11.sp)),
-                  Text('$receipts receipts',
-                      style: TextStyle(color: _textMuted, fontSize: 11.sp)),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRealAttendanceCard() {
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final path  = 'schools/${widget.schoolId}/attendance/$today/summaries';
-
-    print('🔵 ATTENDANCE STREAM STARTING — path: $path');
-    print('🔵 today = $today');
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('attendance')
-          .doc(today)
-          .collection('summaries')
-          .snapshots(),
-      builder: (context, snapshot) {
-        // ── DEBUG: print every state change ──
-        print('📋 ATT snapshot state: ${snapshot.connectionState}');
-        if (snapshot.hasError) print('❌ ATT ERROR: ${snapshot.error}');
-        if (snapshot.hasData)  print('✅ ATT docs count: ${snapshot.data!.docs.length}');
-
-        int total   = 0;
-        int present = 0;
-        int absent  = 0;
-
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            final d = doc.data() as Map<String, dynamic>;
-            print('📄 ATT doc: ${doc.id} | totalStudents=${d['totalStudents']} | present=${d['present']} | absent=${d['absent']}');
-            total   += (d['totalStudents'] ?? 0) as int;
-            present += (d['present']       ?? 0) as int;
-            absent  += (d['absent']        ?? 0) as int;
-          }
-          print('📋 ATT TOTAL: $total | PRESENT: $present | ABSENT: $absent');
-        }
-
-        // Show error state
-        if (snapshot.hasError) {
-          return Container(
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: _accentDanger),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, color: _accentDanger, size: 28.sp),
-                SizedBox(height: 8.h),
-                Text('Attendance Error',
-                    style: TextStyle(color: _accentDanger, fontSize: 13.sp)),
-                Text('${snapshot.error}',
-                    style: TextStyle(color: _textMuted, fontSize: 10.sp),
-                    maxLines: 3, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          );
-        }
-
-        final bool   loading = snapshot.connectionState == ConnectionState.waiting;
-        final double pct     = total > 0 ? present / total * 100 : 0.0;
-        final String pctStr  = total > 0 ? '${pct.toStringAsFixed(1)}%' : '--';
-        final Color  pctCol  = pct >= 90
-            ? _accentSuccess : pct >= 75 ? _accentWarning : _accentDanger;
-
-        return Container(
-          padding: EdgeInsets.all(20.w),
-          decoration: BoxDecoration(
-            color: _bgCard,
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: _border),
-            boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20, offset: const Offset(0, 4))],
-          ),
-          child: loading
-              ? _buildStatShimmer()
-              : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(10.w),
-                    decoration: BoxDecoration(
-                      color: _accentWarning.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    child: Icon(Icons.fact_check,
-                        color: _accentWarning, size: 22.sp),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                    decoration: BoxDecoration(
-                      color: pctCol.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Row(children: [
-                      _PulseWidget(
-                        color: pctCol,
-                        child: Container(
-                          width: 6.w, height: 6.w,
-                          decoration: BoxDecoration(
-                              color: pctCol, shape: BoxShape.circle),
-                        ),
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(pctStr, style: TextStyle(
-                          color: pctCol, fontSize: 11.sp,
-                          fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10.h),
-              total > 0
-                  ? _AnimatedCounter(
-                  value: present,
-                  style: TextStyle(color: _textPrimary,
-                      fontSize: 24.sp, fontWeight: FontWeight.w800))
-                  : Text('--', style: TextStyle(color: _textPrimary,
-                  fontSize: 24.sp, fontWeight: FontWeight.w800)),
-              Text('Attendance Today',
-                  style: TextStyle(color: _textSecondary,
-                      fontSize: 13.sp, fontWeight: FontWeight.w500)),
-              SizedBox(height: 8.h),
-              if (total > 0)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Absent: $absent',
-                        style: TextStyle(color: _accentDanger, fontSize: 11.sp)),
-                    Text('Total: $total',
-                        style: TextStyle(color: _textMuted, fontSize: 11.sp)),
-                  ],
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildEnhancedStatCard(Map<String, dynamic> stat) {
     final collection = stat['collection'] as String;
@@ -3959,150 +3503,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildFeeCollectionCard() {
-    final currentMonth = _getCurrentMonthYear(); // e.g. "2026-06"
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('feePayments')
-          .snapshots(), // ✅ real-time
-      builder: (context, snapshot) {
-        double totalCollected = 0;
-        double monthCollected = 0;
-        int    totalPayments  = 0;
-
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            final d = doc.data() as Map<String, dynamic>;
-
-            // ✅ Your field is 'amount' (number: 1000)
-            final double amount = ((d['amount'] ?? 0) as num).toDouble();
-
-            // ✅ Every doc = a payment (no status field)
-            totalCollected += amount;
-            totalPayments++;
-
-            // ✅ Your field is 'paymentDate' (Timestamp)
-            final Timestamp? paymentDate = d['paymentDate'] as Timestamp?;
-            if (paymentDate != null) {
-              final dt = paymentDate.toDate();
-              final mk = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
-              if (mk == currentMonth) {
-                monthCollected += amount;
-              }
-            }
-          }
-        }
-
-        final bool isLoading = !snapshot.hasData;
-
-        return _HoverCard(
-          scaleUp: 1.025,
-          glowColor: _accentInfo,
-          enableGlow: true,
-          borderRadius: BorderRadius.circular(16.r),
-          child: Container(
-            padding: EdgeInsets.all(20.w),
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: _border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: isLoading
-                ? _buildStatShimmer()
-                : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // ── Top row ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(10.w),
-                      decoration: BoxDecoration(
-                        color: _accentInfo.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Icon(Icons.account_balance_wallet,
-                          color: _accentInfo, size: 24.sp),
-                    ),
-                    Row(children: [
-                      _PulseWidget(
-                        color: _accentInfo,
-                        child: Container(
-                          width: 8.w, height: 8.w,
-                          decoration: const BoxDecoration(
-                              color: _accentInfo, shape: BoxShape.circle),
-                        ),
-                      ),
-                      SizedBox(width: 6.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 4.h),
-                        decoration: BoxDecoration(
-                          color: _accentSuccess.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20.r),
-                        ),
-                        child: Text(_getCurrentMonthName(),
-                            style: TextStyle(
-                                color: _accentSuccess,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ]),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-
-                // ── Main amount ──
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Rs ${_formatCurrency(totalCollected)}',
-                      style: TextStyle(
-                          color: _textPrimary,
-                          fontSize: 22.sp,
-                          fontWeight: FontWeight.w800),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text('Fee Collection',
-                        style: TextStyle(
-                            color: _textSecondary,
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w500)),
-                  ],
-                ),
-                SizedBox(height: 12.h),
-
-                // ── Bottom row ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _feePill('This Month',
-                        'Rs ${_formatCurrency(monthCollected)}',
-                        _accentSuccess),
-                    _feePill('Receipts', '$totalPayments', _accentInfo),
-                    _feePill('Live', '●', _accentSuccess),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _feePill(String label, String value, Color color) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -4153,17 +3554,243 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
     );
   }
 
-  Widget _buildAttendanceChartCard() {
-    return _GlowBorderCard(
-      baseColor: _primary,
-      child: _industrialChartCard(
-        title: "Attendance Analytics",
-        subtitle: "Last 6 days — updates live",
-        child: SizedBox(
-          height: isMobile ? 220.h : 280.h,
-          child: _buildRealAttendanceChart(), // ← now a StreamBuilder
-        ),
-      ),
+
+  Widget _buildAttendanceStat() {
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('attendance')
+          .doc(today)
+          .collection('summaries')
+          .snapshots(),
+      builder: (context, snap) {
+        int total = 0, present = 0, absent = 0;
+        if (snap.hasData) {
+          for (final d in snap.data!.docs) {
+            final m = d.data() as Map<String, dynamic>;
+            total   += (m['totalStudents'] ?? 0) as int;
+            present += (m['present']       ?? 0) as int;
+            absent  += (m['absent']        ?? 0) as int;
+          }
+        }
+        final pct    = total > 0 ? present / total * 100 : 0.0;
+        final pctStr = total > 0 ? '${pct.toStringAsFixed(1)}%' : '--';
+        final pctCol = pct >= 90 ? _accentSuccess
+            : pct >= 75 ? _accentWarning : _accentDanger;
+        final loading = snap.connectionState == ConnectionState.waiting;
+
+        return _HoverCard(
+          scaleUp: 1.025,
+          glowColor: _accentWarning,
+          enableGlow: true,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _border),
+              boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20, offset: const Offset(0, 4),
+              )],
+            ),
+            child: loading
+                ? _buildStatShimmer()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: _accentWarning.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(Icons.fact_check,
+                          color: _accentWarning, size: 22.sp),
+                    ),
+                    Row(children: [
+                      _PulseWidget(
+                        color: pctCol,
+                        child: Container(
+                          width: 7.w, height: 7.w,
+                          decoration: BoxDecoration(
+                              color: pctCol, shape: BoxShape.circle),
+                        ),
+                      ),
+                      SizedBox(width: 5.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
+                        decoration: BoxDecoration(
+                          color: pctCol.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20.r),
+                        ),
+                        child: Text(pctStr,
+                            style: TextStyle(color: pctCol,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ]),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                total > 0
+                    ? _AnimatedCounter(
+                    value: present,
+                    style: TextStyle(color: _textPrimary,
+                        fontSize: 26.sp,
+                        fontWeight: FontWeight.w800))
+                    : Text('--', style: TextStyle(color: _textPrimary,
+                    fontSize: 26.sp, fontWeight: FontWeight.w800)),
+                SizedBox(height: 4.h),
+                Text('Attendance Today',
+                    style: TextStyle(color: _textSecondary,
+                        fontSize: 13.sp, fontWeight: FontWeight.w500)),
+                SizedBox(height: 8.h),
+                if (total > 0)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _miniPill('P', present, _accentSuccess),
+                      _miniPill('A', absent,  _accentDanger),
+                      _miniPill('/', total,   _textMuted),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _miniPill(String label, int val, Color col) => Column(
+    children: [
+      Text('$val', style: TextStyle(
+          color: col, fontSize: 13.sp, fontWeight: FontWeight.w700)),
+      Text(label, style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+    ],
+  );
+
+  Widget _buildFeeStat() {
+    final currentMonth = _getCurrentMonthYear(); // "2026-06"
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('feePayments') // ✅ your real collection
+          .snapshots(),
+      builder: (context, snap) {
+        double total = 0, month = 0;
+        int count = 0;
+        if (snap.hasData) {
+          for (final doc in snap.data!.docs) {
+            final d = doc.data() as Map<String, dynamic>;
+            final amt = ((d['amount'] ?? 0) as num).toDouble();
+            total += amt;
+            count++;
+            final ts = d['paymentDate'] as Timestamp?;
+            if (ts != null) {
+              final dt = ts.toDate();
+              final mk = '${dt.year}-${dt.month.toString().padLeft(2,'0')}';
+              if (mk == currentMonth) month += amt;
+            }
+          }
+        }
+        final loading = snap.connectionState == ConnectionState.waiting;
+
+        return _HoverCard(
+          scaleUp: 1.025,
+          glowColor: _accentInfo,
+          enableGlow: true,
+          borderRadius: BorderRadius.circular(16.r),
+          child: Container(
+            padding: EdgeInsets.all(20.w),
+            decoration: BoxDecoration(
+              color: _bgCard,
+              borderRadius: BorderRadius.circular(16.r),
+              border: Border.all(color: _border),
+              boxShadow: [BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20, offset: const Offset(0, 4),
+              )],
+            ),
+            child: loading
+                ? _buildStatShimmer()
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        color: _accentInfo.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(Icons.account_balance_wallet,
+                          color: _accentInfo, size: 22.sp),
+                    ),
+                    Row(children: [
+                      _PulseWidget(
+                        color: _accentSuccess,
+                        child: Container(
+                          width: 7.w, height: 7.w,
+                          decoration: const BoxDecoration(
+                              color: _accentSuccess,
+                              shape: BoxShape.circle),
+                        ),
+                      ),
+                      SizedBox(width: 5.w),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
+                        decoration: BoxDecoration(
+                          color: _accentSuccess.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20.r),
+                        ),
+                        child: Text(_getCurrentMonthName(),
+                            style: TextStyle(color: _accentSuccess,
+                                fontSize: 11.sp,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ]),
+                  ],
+                ),
+                SizedBox(height: 10.h),
+                Text('Rs ${_formatCurrency(total)}',
+                    style: TextStyle(color: _textPrimary,
+                        fontSize: 22.sp, fontWeight: FontWeight.w800)),
+                SizedBox(height: 4.h),
+                Text('Fee Collection',
+                    style: TextStyle(color: _textSecondary,
+                        fontSize: 13.sp, fontWeight: FontWeight.w500)),
+                SizedBox(height: 8.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('This month: Rs ${_formatCurrency(month)}',
+                        style: TextStyle(
+                            color: _accentSuccess, fontSize: 11.sp)),
+                    Text('$count receipts',
+                        style: TextStyle(
+                            color: _textMuted, fontSize: 11.sp)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -4395,18 +4022,148 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
   }
 
   Widget _buildRevenueChartCard() {
-    // 🎨 GLOW BORDER on revenue chart card
-    return _GlowBorderCard(
-      baseColor: _accentSuccess,
-      child: _industrialChartCard(
-        title: "Fee Collection",
-        subtitle: "Monthly revenue (₨)",
-        actions: [_industrialIconButton(Icons.more_vert, onPressed: () {})],
-        child: SizedBox(
-          height: isMobile ? 200.h : 280.h,
-          child: _buildEnhancedRevenueChart(),
-        ),
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('feePayments')
+          .snapshots(),
+      builder: (context, snap) {
+        // Group by month — last 6 months
+        final Map<String, double> monthly = {};
+        final now = DateTime.now();
+        for (int i = 5; i >= 0; i--) {
+          final d  = DateTime(now.year, now.month - i, 1);
+          final mk = '${d.year}-${d.month.toString().padLeft(2,'0')}';
+          monthly[mk] = 0;
+        }
+
+        if (snap.hasData) {
+          for (final doc in snap.data!.docs) {
+            final d   = doc.data() as Map<String, dynamic>;
+            final amt = ((d['amount'] ?? 0) as num).toDouble();
+            final ts  = d['paymentDate'] as Timestamp?;
+            if (ts != null) {
+              final dt = ts.toDate();
+              final mk = '${dt.year}-${dt.month.toString().padLeft(2,'0')}';
+              if (monthly.containsKey(mk)) monthly[mk] = monthly[mk]! + amt;
+            }
+          }
+        }
+
+        final keys   = monthly.keys.toList();
+        final values = monthly.values.toList();
+        final maxVal = values.isEmpty ? 1.0
+            : values.reduce((a, b) => a > b ? a : b).clamp(1.0, double.infinity);
+
+        final loading = snap.connectionState == ConnectionState.waiting;
+        final totalThisMonth = monthly[_getCurrentMonthYear()] ?? 0.0;
+
+        return _GlowBorderCard(
+          baseColor: _accentSky,
+          child: _industrialChartCard(
+            title: 'Fee Collection',
+            subtitle: '${_getCurrentMonthName()} · Live',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary row
+                Row(children: [
+                  Text('Rs ${_formatCurrency(totalThisMonth)}',
+                      style: TextStyle(color: _textPrimary,
+                          fontSize: 20.sp, fontWeight: FontWeight.w800)),
+                  SizedBox(width: 8.w),
+                  _PulseWidget(
+                    color: _accentSuccess,
+                    child: Container(
+                      width: 7.w, height: 7.w,
+                      decoration: const BoxDecoration(
+                          color: _accentSuccess, shape: BoxShape.circle),
+                    ),
+                  ),
+                  SizedBox(width: 4.w),
+                  Text('this month',
+                      style: TextStyle(color: _textMuted, fontSize: 12.sp)),
+                ]),
+                SizedBox(height: 16.h),
+                // Bar chart
+                loading
+                    ? _buildStatShimmer()
+                    : SizedBox(
+                  height: isMobile ? 140.h : 180.h,
+                  child: BarChart(BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: maxVal * 1.2,
+                    barTouchData: BarTouchData(
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipItem: (g, gi, r, ri) => BarTooltipItem(
+                          'Rs ${_formatCurrency(r.toY)}',
+                          TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11.sp),
+                        ),
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (v, _) {
+                          final i = v.toInt();
+                          if (i < 0 || i >= keys.length)
+                            return const SizedBox();
+                          final parts = keys[i].split('-');
+                          final months = ['','Jan','Feb','Mar','Apr','May',
+                            'Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                          final mNum = int.tryParse(parts[1]) ?? 0;
+                          return Padding(
+                            padding: EdgeInsets.only(top: 5.h),
+                            child: Text(
+                              mNum > 0 && mNum <= 12 ? months[mNum] : '',
+                              style: TextStyle(
+                                  color: _textMuted, fontSize: 10.sp),
+                            ),
+                          );
+                        },
+                      )),
+                      leftTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      getDrawingHorizontalLine: (_) =>
+                          FlLine(color: _border, strokeWidth: 1),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: List.generate(keys.length, (i) {
+                      final isCurrentMonth = keys[i] == _getCurrentMonthYear();
+                      return BarChartGroupData(x: i, barRods: [
+                        BarChartRodData(
+                          toY: values[i],
+                          width: isMobile ? 16.w : 22.w,
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(6.r)),
+                          gradient: LinearGradient(
+                            colors: isCurrentMonth
+                                ? [_accentSky.withOpacity(0.5), _accentSky]
+                                : [_primary.withOpacity(0.3), _primary.withOpacity(0.6)],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                        ),
+                      ]);
+                    }),
+                  )),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
