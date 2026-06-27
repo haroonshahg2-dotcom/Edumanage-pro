@@ -548,9 +548,9 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       String errorMsg = 'Registration failed';
-      if (e.code == 'email-already-in-use') errorMsg = 'Yeh email already use ho raha hai';
-      else if (e.code == 'weak-password') errorMsg = 'Password weak hai (min 6 characters)';
-      else if (e.code == 'invalid-email') errorMsg = 'Email sahi format mein nahi';
+      if (e.code == 'email-already-in-use') errorMsg = 'This email already in-use';
+      else if (e.code == 'weak-password') errorMsg = 'Password is week (min 6 characters)';
+      else if (e.code == 'invalid-email') errorMsg = 'Incorrect email format';
       _showError(errorMsg);
     } catch (e) {
       setState(() => _isLoading = false);
@@ -570,18 +570,18 @@ class _RegisterSchoolPageState extends State<RegisterSchoolPage> {
 
   // ==================== VALIDATION ====================
   bool _validateSchoolInfo() {
-    if (_schoolNameController.text.isEmpty) { _showError('School name enter karo'); return false; }
-    if (_schoolAddressController.text.isEmpty) { _showError('Address enter karo'); return false; }
-    if (_schoolPhoneController.text.isEmpty) { _showError('Phone number enter karo'); return false; }
-    if (_schoolEmailController.text.isEmpty || !_schoolEmailController.text.contains('@')) { _showError('Sahi email enter karo'); return false; }
+    if (_schoolNameController.text.isEmpty) { _showError('Enter School Name'); return false; }
+    if (_schoolAddressController.text.isEmpty) { _showError('Enter Address'); return false; }
+    if (_schoolPhoneController.text.isEmpty) { _showError('Enter Phone Number'); return false; }
+    if (_schoolEmailController.text.isEmpty || !_schoolEmailController.text.contains('@')) { _showError('Use correct email'); return false; }
     return true;
   }
 
   bool _validateAdminInfo() {
-    if (_adminFirstNameController.text.isEmpty) { _showError('First name enter karo'); return false; }
-    if (_adminLastNameController.text.isEmpty) { _showError('Last name enter karo'); return false; }
-    if (_adminEmailController.text.isEmpty || !_adminEmailController.text.contains('@')) { _showError('Sahi admin email enter karo'); return false; }
-    if (_adminPasswordController.text.length < 6) { _showError('Password kam az kam 6 characters ka hona chahiye'); return false; }
+    if (_adminFirstNameController.text.isEmpty) { _showError('Enter First Name'); return false; }
+    if (_adminLastNameController.text.isEmpty) { _showError('Enter Last Name'); return false; }
+    if (_adminEmailController.text.isEmpty || !_adminEmailController.text.contains('@')) { _showError('Use correct admin email'); return false; }
+    if (_adminPasswordController.text.length < 6) { _showError('Password Must be at leat 6 character'); return false; }
     return true;
   }
 

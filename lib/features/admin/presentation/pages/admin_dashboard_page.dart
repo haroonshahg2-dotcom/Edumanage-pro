@@ -224,7 +224,7 @@ class _AnimatedCounterState extends State<_AnimatedCounter>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) =>
+      builder: (_, _) =>
           Text(_anim.value.toInt().toString(), style: widget.style),
     );
   }
@@ -4237,7 +4237,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               barWidth: 3,
               dotData: FlDotData(
                 show: true,
-                getDotPainter: (spot, _, __, ___) {
+                getDotPainter: (spot, _, _, _) {
                   final c = spot.y >= 90 ? _accentSuccess
                       : spot.y >= 75 ? _accentWarning : _accentDanger;
                   return FlDotCirclePainter(
@@ -4437,12 +4437,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
             showTitles: true,
             getTitlesWidget: (value, meta) {
               final labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-              if (value.toInt() < labels.length)
+              if (value.toInt() < labels.length) {
                 return Padding(
                   padding: EdgeInsets.only(top: 8.h),
                   child: Text(labels[value.toInt()],
                       style: TextStyle(color: _textMuted, fontSize: 11.sp)),
                 );
+              }
               return const SizedBox();
             },
           ),
