@@ -2823,19 +2823,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
               stream: FirebaseFirestore.instance
                   .collection('schools')
                   .doc(widget.schoolId)
-                  .collection('fees')
+                  .collection('feePayments')
                   .snapshots(),
               builder: (context, snapshot) {
                 double totalFees = 0, paidFees = 0;
                 if (snapshot.hasData) {
                   for (var doc in snapshot.data!.docs) {
                     final d = doc.data() as Map<String, dynamic>;
-                    totalFees += (d['totalAmount'] ?? 0).toDouble();
-                    paidFees  += (d['paidAmount']  ?? 0).toDouble();
+                    // 'amount' is your real field — every doc is a paid receipt
+                    final amt = ((d['amount'] ?? 0) as num).toDouble();
+                    paidFees  += amt;
+                    totalFees += amt;
                   }
                 } else {
-                  totalFees = 100;
-                  paidFees  = 72;
+                  totalFees = 0;
+                  paidFees  = 0;
                 }
                 final unpaid = (totalFees - paidFees).clamp(0, double.infinity).toDouble();
                 final pct = totalFees > 0 ? (paidFees / totalFees * 100) : 0;
