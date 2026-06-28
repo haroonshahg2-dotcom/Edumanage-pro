@@ -4501,14 +4501,15 @@ class _StudentFormState extends State<StudentForm> {
     setState(() => _isSaving = true);
 
     try {
-      // ── STEP 1: Generate roll number ─────────────────────────────────
+      // ── Generate roll number ─────────────────────────────────────────
       String rollNumber = _rollController.text;
       if (!_isEdit || rollNumber.isEmpty) {
         rollNumber = await _generateRollNumber(className);
       }
 
-      // ── STEP 2: Save student to Firestore FIRST (without photo) ──────
-      // This way student is always saved even if photo upload fails
+      // ── Build student data ───────────────────────────────────────────
+      // NOTE: photoUrl is NOT uploaded here because Firebase Storage
+      // requires Blaze plan. Photo upload will be added after plan upgrade.
       final studentData = <String, dynamic>{
         'name':             _nameController.text.trim(),
         'rollNumber':       rollNumber,
@@ -4526,83 +4527,31 @@ class _StudentFormState extends State<StudentForm> {
         'updatedAt':        FieldValue.serverTimestamp(),
       };
 
-      String savedStudentId;
-
+      // ── Save to Firestore ────────────────────────────────────────────
       if (_isEdit) {
-        savedStudentId = widget.existingStudent!.id;
         await widget.existingStudent!.reference.update(studentData);
+        widget.showSnackBar('✅ Student updated successfully!');
       } else {
         studentData['schoolId']  = widget.schoolId;
         studentData['createdAt'] = FieldValue.serverTimestamp();
-        studentData['createdBy'] = FirebaseAuth.instance.currentUser?.uid;
+        studentData['createdBy'] = FirebaseAuth.instance.currentUser?.uid ?? '';
 
-        final docRef = await FirebaseFirestore.instance
+        await FirebaseFirestore.instance
             .collection('schools')
             .doc(widget.schoolId)
             .collection('students')
             .add(studentData);
 
-        savedStudentId = docRef.id;
-      }
-
-      // ── STEP 3: Upload photo AFTER student is saved ───────────────────
-      // Now we have a real studentId to use in Storage path
-      if (_pickedPhoto != null) {
-        try {
-          final ref = FirebaseStorage.instance.ref(
-            'schools/${widget.schoolId}/students/$savedStudentId/photo.jpg',
-          );
-
-          // Upload
-          if (kIsWeb) {
-            final bytes = await _pickedPhoto!.readAsBytes();
-            await ref.putData(
-              bytes,
-              SettableMetadata(contentType: 'image/jpeg'),
-            );
-          } else {
-            await ref.putFile(File(_pickedPhoto!.path));
-          }
-
-          // Get URL and update Firestore doc with photoUrl
-          final photoUrl = await ref.getDownloadURL();
-          await FirebaseFirestore.instance
-              .collection('schools')
-              .doc(widget.schoolId)
-              .collection('students')
-              .doc(savedStudentId)
-              .update({'photoUrl': photoUrl});
-
-        } catch (photoError) {
-          // Student was already saved — just warn about photo
-          debugPrint('Photo upload error: $photoError');
-          widget.showSnackBar(
-            '✅ Student saved! But photo failed to upload. Try editing to add photo.',
-          );
-          if (!_isEdit) _clearForm();
-          return; // exit early, student IS saved
-        }
-      }
-
-      // ── STEP 4: Success ───────────────────────────────────────────────
-      if (_isEdit) {
-        widget.showSnackBar('✅ Student updated successfully!');
-      } else {
-        widget.showSnackBar('✅ Student added with Roll: $rollNumber');
+        widget.showSnackBar('✅ Student added! Roll: $rollNumber');
         _clearForm();
         widget.onSaved?.call();
       }
 
     } catch (e) {
-      debugPrint('Save error: $e');
-      widget.showSnackBar('❌ Error: $e', isError: true);
+      debugPrint('❌ Save error: $e');
+      widget.showSnackBar('❌ Error saving: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving         = false;
-          _isUploadingPhoto = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
