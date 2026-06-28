@@ -4616,304 +4616,475 @@ class _StudentFormState extends State<StudentForm> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+// 🎨 STUDENT FORM — PROFESSIONAL REDESIGN
+//
+// WHAT TO REPLACE:
+//   Find `@override` just before `Widget build(BuildContext context)` inside
+//   _StudentFormState — replace from that @override all the way to the last }
+//   of the class (which is the closing } of _StudentFormState).
+//
+// WHAT IS NOT CHANGED:
+//   ✅ All controllers (same)       ✅ _handleSave() (same)
+//   ✅ All Firestore logic (same)   ✅ _clearForm() (same)
+//   ✅ All widget.xxx params (same) ✅ _generateRollNumber() (same)
+// ═══════════════════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🎬 Each form section fades in staggered
+
+        // ── SECTION 1: Basic Information ──────────────────────────────────
         _FadeIn(
-          delay: const Duration(milliseconds: 100),
-          child: _buildSectionHeader("Basic Information", Icons.person),
+          delay: const Duration(milliseconds: 80),
+          child: _sectionHeader('Basic Information', Icons.person_outline_rounded,
+              const Color(0xFF7C8CF0)),
         ),
         SizedBox(height: 16.h),
 
+        // Full Name
+        _FadeIn(
+          delay: const Duration(milliseconds: 120),
+          child: _formField(
+            label: 'Full Name',
+            hint: 'e.g. Muhammad Ali',
+            icon: Icons.badge_outlined,
+            controller: _nameController,
+            isRequired: true,
+          ),
+        ),
+        SizedBox(height: 12.h),
+
+        // Class + Gender + Blood Group
         _FadeIn(
           delay: const Duration(milliseconds: 160),
-          child: _industrialTextField("Full Name *", _nameController),
+          child: widget.isMobile
+              ? Column(children: [
+            _formField(
+              label: 'Class', hint: 'e.g. 5A',
+              icon: Icons.class_outlined,
+              controller: _classController, isRequired: true,
+            ),
+            SizedBox(height: 12.h),
+            _styledDropdown(
+              label: 'Gender', hint: 'Select gender',
+              icon: Icons.wc_rounded,
+              value: _selectedGender,
+              items: widget.genders,
+              isRequired: true,
+              onChanged: (v) => setState(() => _selectedGender = v),
+            ),
+            SizedBox(height: 12.h),
+            _styledDropdown(
+              label: 'Blood Group', hint: 'Select blood group',
+              icon: Icons.bloodtype_outlined,
+              value: _selectedBloodGroup,
+              items: widget.bloodGroups,
+              onChanged: (v) => setState(() => _selectedBloodGroup = v),
+            ),
+          ])
+              : Row(children: [
+            Expanded(child: _formField(
+              label: 'Class', hint: 'e.g. 5A',
+              icon: Icons.class_outlined,
+              controller: _classController, isRequired: true,
+            )),
+            SizedBox(width: 12.w),
+            Expanded(child: _styledDropdown(
+              label: 'Gender', hint: 'Select gender',
+              icon: Icons.wc_rounded,
+              value: _selectedGender,
+              items: widget.genders,
+              isRequired: true,
+              onChanged: (v) => setState(() => _selectedGender = v),
+            )),
+            SizedBox(width: 12.w),
+            Expanded(child: _styledDropdown(
+              label: 'Blood Group', hint: 'Select blood group',
+              icon: Icons.bloodtype_outlined,
+              value: _selectedBloodGroup,
+              items: widget.bloodGroups,
+              onChanged: (v) => setState(() => _selectedBloodGroup = v),
+            )),
+          ]),
         ),
         SizedBox(height: 12.h),
 
+        // Date of Birth
         _FadeIn(
           delay: const Duration(milliseconds: 200),
-          child: widget.isMobile
-              ? Column(
-            children: [
-              _industrialTextField("Class *", _classController),
-              SizedBox(height: 12.h),
-              _buildGenderDropdown(),
-            ],
-          )
-              : Row(
-            children: [
-              Expanded(child: _industrialTextField("Class *", _classController)),
-              SizedBox(width: 12.w),
-              Expanded(child: _buildGenderDropdown()),
-              SizedBox(width: 12.w),
-              Expanded(child: _buildBloodGroupDropdown()),
-            ],
-          ),
+          child: _dobPicker(),
         ),
-        SizedBox(height: 12.h),
+        SizedBox(height: 28.h),
 
+        // ── SECTION 2: Parent Information ─────────────────────────────────
         _FadeIn(
           delay: const Duration(milliseconds: 240),
-          child: GestureDetector(
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now().subtract(Duration(days: 365 * 10)),
-                firstDate: DateTime.now().subtract(Duration(days: 365 * 25)),
-                lastDate: DateTime.now(),
-                builder: (context, child) => Theme(
-                  data: Theme.of(context).copyWith(
-                    colorScheme: ColorScheme.dark(
-                      primary: widget.studentPrimary,
-                      surface: widget.bgCard,
-                    ),
-                  ),
-                  child: child!,
-                ),
-              );
-              if (date != null) {
-                _dobController.text = DateFormat('yyyy-MM-dd').format(date);
-              }
-            },
-            child: Container(
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                color: widget.bgElevated,
-                borderRadius: BorderRadius.circular(10.r),
-                border: Border.all(color: widget.border),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: widget.textMuted, size: 20.sp),
-                  SizedBox(width: 12.w),
-                  Text(
-                    _dobController.text.isEmpty ? "Date of Birth *" : _dobController.text,
-                    style: TextStyle(
-                      color: _dobController.text.isEmpty ? widget.textMuted : widget.textPrimary,
-                      fontSize: 14.sp,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 24.h),
-
-        _FadeIn(
-          delay: const Duration(milliseconds: 280),
-          child: _buildSectionHeader("Parent Information", Icons.family_restroom),
+          child: _sectionHeader('Parent Information', Icons.family_restroom_rounded,
+              const Color(0xFF3DD68B)),
         ),
         SizedBox(height: 16.h),
 
         _FadeIn(
-          delay: const Duration(milliseconds: 320),
-          child: _industrialTextField("Father's Name *", _fatherNameController),
+          delay: const Duration(milliseconds: 270),
+          child: _formField(
+            label: "Father's Name", hint: 'e.g. Muhammad Usman',
+            icon: Icons.person_2_outlined,
+            controller: _fatherNameController, isRequired: true,
+          ),
         ),
         SizedBox(height: 12.h),
 
         _FadeIn(
-          delay: const Duration(milliseconds: 360),
+          delay: const Duration(milliseconds: 300),
           child: widget.isMobile
-              ? Column(
-            children: [
-              _industrialTextField("Father's Phone *", _fatherPhoneController, type: TextInputType.phone),
-              SizedBox(height: 12.h),
-              _industrialTextField("Father's CNIC", _fatherCNICController),
-            ],
-          )
-              : Row(
-            children: [
-              Expanded(child: _industrialTextField("Father's Phone *", _fatherPhoneController, type: TextInputType.phone)),
-              SizedBox(width: 12.w),
-              Expanded(child: _industrialTextField("Father's CNIC", _fatherCNICController)),
-            ],
+              ? Column(children: [
+            _formField(
+              label: "Father's Phone", hint: '03XX-XXXXXXX',
+              icon: Icons.phone_outlined,
+              controller: _fatherPhoneController,
+              type: TextInputType.phone, isRequired: true,
+            ),
+            SizedBox(height: 12.h),
+            _formField(
+              label: "Father's CNIC", hint: 'XXXXX-XXXXXXX-X',
+              icon: Icons.credit_card_outlined,
+              controller: _fatherCNICController,
+            ),
+          ])
+              : Row(children: [
+            Expanded(child: _formField(
+              label: "Father's Phone", hint: '03XX-XXXXXXX',
+              icon: Icons.phone_outlined,
+              controller: _fatherPhoneController,
+              type: TextInputType.phone, isRequired: true,
+            )),
+            SizedBox(width: 12.w),
+            Expanded(child: _formField(
+              label: "Father's CNIC", hint: 'XXXXX-XXXXXXX-X',
+              icon: Icons.credit_card_outlined,
+              controller: _fatherCNICController,
+            )),
+          ]),
+        ),
+        SizedBox(height: 28.h),
+
+        // ── SECTION 3: Address & Emergency ────────────────────────────────
+        _FadeIn(
+          delay: const Duration(milliseconds: 340),
+          child: _sectionHeader('Address & Emergency', Icons.location_on_outlined,
+              const Color(0xFF4DBEF7)),
+        ),
+        SizedBox(height: 16.h),
+
+        _FadeIn(
+          delay: const Duration(milliseconds: 370),
+          child: _formField(
+            label: 'Complete Address', hint: 'Street, City, Province',
+            icon: Icons.home_outlined,
+            controller: _addressController,
+            maxLines: 2, isRequired: true,
           ),
         ),
         SizedBox(height: 12.h),
 
         _FadeIn(
           delay: const Duration(milliseconds: 400),
-          child: _buildSectionHeader("Address & Emergency", Icons.location_on),
+          child: _formField(
+            label: 'Emergency Contact', hint: '03XX-XXXXXXX',
+            icon: Icons.emergency_outlined,
+            controller: _emergencyContactController,
+            type: TextInputType.phone, isRequired: true,
+          ),
+        ),
+        SizedBox(height: 28.h),
+
+        // ── SECTION 4: Documents ──────────────────────────────────────────
+        _FadeIn(
+          delay: const Duration(milliseconds: 430),
+          child: _sectionHeader('Documents', Icons.folder_outlined,
+              const Color(0xFFF2A93B)),
         ),
         SizedBox(height: 16.h),
 
-        _FadeIn(
-          delay: const Duration(milliseconds: 440),
-          child: _industrialTextField("Complete Address *", _addressController, maxLines: 2),
-        ),
-        SizedBox(height: 12.h),
         _FadeIn(
           delay: const Duration(milliseconds: 460),
-          child: _industrialTextField("Emergency Contact *", _emergencyContactController, type: TextInputType.phone),
-        ),
-        SizedBox(height: 24.h),
-
-        _FadeIn(
-          delay: const Duration(milliseconds: 480),
-          child: _buildSectionHeader("Documents", Icons.folder),
-        ),
-        SizedBox(height: 16.h),
-
-        _FadeIn(
-          delay: const Duration(milliseconds: 500),
-          child: Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: widget.bgElevated,
-              borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: widget.border, style: BorderStyle.solid),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.cloud_upload, color: widget.textMuted, size: 32.sp),
-                SizedBox(height: 8.h),
-                Text(
-                  "Upload Photo & Documents",
-                  style: TextStyle(color: widget.textSecondary, fontSize: 14.sp),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  "Coming soon: Photo, Birth Certificate, etc.",
-                  style: TextStyle(color: widget.textMuted, fontSize: 11.sp),
-                ),
-              ],
-            ),
-          ),
+          child: _documentUploadBox(),
         ),
         SizedBox(height: 32.h),
 
-        // 🎬 Save button fades in last with press animation
+        // ── Save / Update Button ──────────────────────────────────────────
         _FadeIn(
-          delay: const Duration(milliseconds: 520),
+          delay: const Duration(milliseconds: 500),
           child: SizedBox(
             width: double.infinity,
-            child: _industrialButton(
-              _isEdit ? "Update Student" : "Save Student",
-              icon: _isEdit ? Icons.update : Icons.save,
-              onPressed: _isSaving ? null : _handleSave,
-              isLoading: _isSaving,
-            ),
+            child: _saveButton(),
           ),
         ),
+        SizedBox(height: 8.h),
       ],
     );
   }
 
-  // ─── STUDENT FORM HELPER METHODS ───
+  // ─────────────────────────────────────────────────────────────────────────
+  // HELPER WIDGETS (replace the old ones at the bottom of the class)
+  // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildSectionHeader(String title, IconData icon) {
+  /// Section header with colored left bar + icon
+  Widget _sectionHeader(String title, IconData icon, Color color) {
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(8.w),
+          width: 3.w, height: 22.h,
           decoration: BoxDecoration(
-            color: widget.studentPrimary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8.r),
+            color: color,
+            borderRadius: BorderRadius.circular(2.r),
+            boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 8)],
           ),
-          child: Icon(icon, color: widget.studentPrimary, size: 20.sp),
         ),
         SizedBox(width: 12.w),
+        Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Icon(icon, color: color, size: 16.sp),
+        ),
+        SizedBox(width: 10.w),
         Text(
           title,
           style: TextStyle(
             color: widget.textPrimary,
-            fontSize: 16.sp,
+            fontSize: 15.sp,
             fontWeight: FontWeight.w700,
+            letterSpacing: 0.1,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildGenderDropdown() {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w),
-      decoration: BoxDecoration(
-        color: widget.bgElevated,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: widget.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedGender,
-          isExpanded: true,
-          dropdownColor: widget.bgElevated,
-          hint: Text("Gender *", style: TextStyle(color: widget.textMuted, fontSize: 14.sp)),
-          items: widget.genders.map((gender) {
-            return DropdownMenuItem(
-              value: gender,
-              child: Text(gender, style: TextStyle(color: widget.textPrimary, fontSize: 14.sp)),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedGender = val),
-        ),
+  /// Styled text field with floating label + left icon
+  Widget _formField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    TextInputType type = TextInputType.text,
+    int maxLines = 1,
+    bool isRequired = false,
+  }) {
+    return _FocusField(
+      border: widget.border,
+      focusColor: widget.studentPrimary,
+      bgElevated: widget.bgElevated,
+      builder: (isFocused) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Label row
+          Row(children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isFocused ? widget.studentPrimary : widget.textSecondary,
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+            if (isRequired) ...[
+              SizedBox(width: 3.w),
+              Text('*', style: TextStyle(color: widget.accentDanger, fontSize: 12.sp, fontWeight: FontWeight.w700)),
+            ],
+          ]),
+          SizedBox(height: 6.h),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            decoration: BoxDecoration(
+              color: widget.bgElevated,
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(
+                color: isFocused ? widget.studentPrimary : widget.border,
+                width: isFocused ? 1.5 : 1,
+              ),
+              boxShadow: isFocused
+                  ? [BoxShadow(color: widget.studentPrimary.withOpacity(0.12), blurRadius: 8)]
+                  : [],
+            ),
+            child: Row(
+              crossAxisAlignment: maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(left: 14.w, top: maxLines > 1 ? 14.h : 0),
+                  child: Icon(
+                    icon,
+                    color: isFocused ? widget.studentPrimary : widget.textMuted,
+                    size: 18.sp,
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    keyboardType: type,
+                    maxLines: maxLines,
+                    style: TextStyle(color: widget.textPrimary, fontSize: 14.sp),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: hint,
+                      hintStyle: TextStyle(color: widget.textMuted, fontSize: 13.sp),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: maxLines > 1 ? 12.h : 14.h,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBloodGroupDropdown() {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w),
-      decoration: BoxDecoration(
-        color: widget.bgElevated,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: widget.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedBloodGroup,
-          isExpanded: true,
-          dropdownColor: widget.bgElevated,
-          hint: Text("Blood Group", style: TextStyle(color: widget.textMuted, fontSize: 14.sp)),
-          items: widget.bloodGroups.map((bg) {
-            return DropdownMenuItem(
-              value: bg,
-              child: Text(bg, style: TextStyle(color: widget.textPrimary, fontSize: 14.sp)),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedBloodGroup = val),
-        ),
-      ),
-    );
-  }
-
-  Widget _industrialTextField(
-      String label,
-      TextEditingController controller, {
-        TextInputType type = TextInputType.text,
-        int maxLines = 1,
-      }) {
+  /// Styled dropdown with label + icon (matches _formField visually)
+  Widget _styledDropdown({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    bool isRequired = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: widget.textSecondary,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
+        Row(children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: widget.textSecondary,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
+            ),
           ),
-        ),
-        SizedBox(height: 8.h),
+          if (isRequired) ...[
+            SizedBox(width: 3.w),
+            Text('*', style: TextStyle(color: widget.accentDanger, fontSize: 12.sp, fontWeight: FontWeight.w700)),
+          ],
+        ]),
+        SizedBox(height: 6.h),
         Container(
+          padding: EdgeInsets.only(left: 12.w, right: 4.w),
           decoration: BoxDecoration(
             color: widget.bgElevated,
             borderRadius: BorderRadius.circular(10.r),
             border: Border.all(color: widget.border),
           ),
-          child: TextField(
-            controller: controller,
-            keyboardType: type,
-            maxLines: maxLines,
-            style: TextStyle(color: widget.textPrimary, fontSize: 14.sp),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+          child: Row(
+            children: [
+              Icon(icon, color: widget.textMuted, size: 18.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: value,
+                    isExpanded: true,
+                    dropdownColor: widget.bgElevated,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: widget.textMuted, size: 20.sp),
+                    hint: Text(hint, style: TextStyle(color: widget.textMuted, fontSize: 13.sp)),
+                    items: items.map((item) => DropdownMenuItem(
+                      value: item,
+                      child: Text(item, style: TextStyle(color: widget.textPrimary, fontSize: 14.sp)),
+                    )).toList(),
+                    onChanged: onChanged,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Date of birth picker row
+  Widget _dobPicker() {
+    final hasDob = _dobController.text.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Text('Date of Birth',
+              style: TextStyle(color: widget.textSecondary, fontSize: 12.sp, fontWeight: FontWeight.w600)),
+          SizedBox(width: 3.w),
+          Text('*', style: TextStyle(color: widget.accentDanger, fontSize: 12.sp, fontWeight: FontWeight.w700)),
+        ]),
+        SizedBox(height: 6.h),
+        GestureDetector(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
+              firstDate: DateTime.now().subtract(const Duration(days: 365 * 25)),
+              lastDate: DateTime.now(),
+              builder: (context, child) => Theme(
+                data: Theme.of(context).copyWith(
+                  colorScheme: ColorScheme.dark(
+                    primary: widget.studentPrimary,
+                    surface: widget.bgCard,
+                  ),
+                ),
+                child: child!,
+              ),
+            );
+            if (date != null) {
+              setState(() => _dobController.text = DateFormat('yyyy-MM-dd').format(date));
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+            decoration: BoxDecoration(
+              color: widget.bgElevated,
+              borderRadius: BorderRadius.circular(10.r),
+              border: Border.all(
+                color: hasDob ? widget.studentPrimary.withOpacity(0.5) : widget.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_month_outlined,
+                    color: hasDob ? widget.studentPrimary : widget.textMuted,
+                    size: 18.sp),
+                SizedBox(width: 12.w),
+                Text(
+                  hasDob ? _dobController.text : 'Select date of birth',
+                  style: TextStyle(
+                    color: hasDob ? widget.textPrimary : widget.textMuted,
+                    fontSize: 14.sp,
+                  ),
+                ),
+                const Spacer(),
+                if (hasDob)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: widget.studentPrimary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                    child: Text('Change',
+                        style: TextStyle(color: widget.studentPrimary, fontSize: 10.sp, fontWeight: FontWeight.w600)),
+                  )
+                else
+                  Icon(Icons.keyboard_arrow_down_rounded, color: widget.textMuted, size: 20.sp),
+              ],
             ),
           ),
         ),
@@ -4921,73 +5092,136 @@ class _StudentFormState extends State<StudentForm> {
     );
   }
 
-  /// 🎬 Form's save button also gets press scale
-  Widget _industrialButton(
-      String label, {
-        IconData? icon,
-        VoidCallback? onPressed,
-        bool isSecondary = false,
-        bool isLoading = false,
-      }) {
-    final inner = Container(
+  /// Document upload box (coming soon — no logic change)
+  Widget _documentUploadBox() {
+    return Container(
+      padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
-        gradient: isSecondary || onPressed == null
-            ? null
-            : LinearGradient(colors: [widget.studentPrimary, widget.studentLight]),
-        color: isSecondary ? Colors.transparent : null,
-        borderRadius: BorderRadius.circular(10.r),
-        border: isSecondary ? Border.all(color: widget.border) : null,
+        color: widget.bgElevated,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(
+          color: widget.border,
+          style: BorderStyle.solid,
+        ),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(10.r),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-            child: isLoading
-                ? SizedBox(
-              width: 20.w,
-              height: 20.w,
-              child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
-            )
-                : Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    color: isSecondary ? widget.textPrimary : Colors.white,
-                    size: 18.sp,
-                  ),
-                  SizedBox(width: 8.w),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSecondary ? widget.textPrimary : Colors.white,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2A93B).withOpacity(0.08),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFF2A93B).withOpacity(0.2)),
             ),
+            child: Icon(Icons.cloud_upload_outlined,
+                color: const Color(0xFFF2A93B), size: 28.sp),
           ),
+          SizedBox(height: 12.h),
+          Text(
+            'Upload Photo & Documents',
+            style: TextStyle(color: widget.textSecondary, fontSize: 14.sp, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            'Photo, Birth Certificate, etc. — Coming soon',
+            style: TextStyle(color: widget.textMuted, fontSize: 11.sp),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Save / Update button with gradient + loading state
+  Widget _saveButton() {
+    return _PressButton(
+      onTap: _isSaving ? () {} : _handleSave,
+      borderRadius: BorderRadius.circular(12.r),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(vertical: 15.h),
+        decoration: BoxDecoration(
+          gradient: _isSaving
+              ? null
+              : LinearGradient(
+            colors: [widget.studentPrimary, widget.studentLight],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          color: _isSaving ? widget.bgElevated : null,
+          borderRadius: BorderRadius.circular(12.r),
+          boxShadow: _isSaving
+              ? []
+              : [BoxShadow(color: widget.studentPrimary.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 6))],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_isSaving)
+              SizedBox(
+                width: 18.w, height: 18.w,
+                child: CircularProgressIndicator(
+                  color: widget.textPrimary, strokeWidth: 2,
+                ),
+              )
+            else ...[
+              Icon(
+                _isEdit ? Icons.check_circle_outline_rounded : Icons.save_alt_rounded,
+                color: Colors.white, size: 20.sp,
+              ),
+              SizedBox(width: 10.w),
+              Text(
+                _isEdit ? 'Update Student' : 'Save Student',
+                style: TextStyle(color: Colors.white, fontSize: 15.sp, fontWeight: FontWeight.w700, letterSpacing: 0.3),
+              ),
+            ],
+          ],
         ),
       ),
     );
-
-    if (!isSecondary && onPressed != null && !isLoading) {
-      return _PressButton(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(10.r),
-        child: inner,
-      );
-    }
-    return inner;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🆕 NEW HELPER CLASS — _FocusField
+// Paste this OUTSIDE _StudentFormState (just before or after StudentForm class)
+// It handles the focus color animation for text fields
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _FocusField extends StatefulWidget {
+  final Widget Function(bool isFocused) builder;
+  final Color border;
+  final Color focusColor;
+  final Color bgElevated;
+
+  const _FocusField({
+    required this.builder,
+    required this.border,
+    required this.focusColor,
+    required this.bgElevated,
+  });
+
+  @override
+  State<_FocusField> createState() => _FocusFieldState();
+}
+
+class _FocusFieldState extends State<_FocusField> {
+  final _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (mounted) setState(() => _isFocused = _focusNode.hasFocus);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_isFocused);
 }
