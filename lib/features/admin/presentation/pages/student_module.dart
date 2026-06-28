@@ -448,169 +448,247 @@ class _StudentModuleState extends State<StudentModule>
   // ═══════════════════════════════════════════════════════════════════════════════
 
   Widget _buildModuleHeader() {
-    return widget.isMobile
-        ? Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // 🎬 Pulse on header icon
-            _PulseIcon(
-              child: Container(
-                padding: EdgeInsets.all(10.w),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_studentPrimary, _studentLight],
-                  ),
-                  borderRadius: BorderRadius.circular(10.r),
+    Widget headerCard({required Widget child}) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20.r),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(widget.isMobile ? 16.w : 22.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_studentPrimary.withOpacity(0.16), _bgCard],
+            ),
+            border: Border.all(color: _studentPrimary.withOpacity(0.25)),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -30.h,
+                right: -20.w,
+                child: Container(
+                  width: 130.w,
+                  height: 130.w,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _studentPrimary.withOpacity(0.10)),
                 ),
-                child: Icon(Icons.people, color: Colors.white, size: 24.sp),
               ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Student Management",
-                    style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 22.sp,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    "Complete student lifecycle",
-                    style: TextStyle(
-                      color: _studentPrimary,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              Positioned(
+                bottom: -40.h,
+                right: 70.w,
+                child: Container(
+                  width: 100.w,
+                  height: 100.w,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _accentInfo.withOpacity(0.07)),
+                ),
               ),
-            ),
+              child,
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget iconBadge(double size, double iconSize) => _PulseIcon(
+      child: Container(
+        padding: EdgeInsets.all(size),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_studentPrimary, _studentDark],
+          ),
+          borderRadius: BorderRadius.circular(size + 2.r),
+          boxShadow: [
+            BoxShadow(
+                color: _studentPrimary.withOpacity(0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6)),
           ],
         ),
-        SizedBox(height: 12.h),
-        Row(
+        child: Icon(Icons.people, color: Colors.white, size: iconSize),
+      ),
+    );
+
+    if (widget.isMobile) {
+      return headerCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _industrialButton(
-                "Add Student",
-                icon: Icons.person_add,
-                onPressed: () => _tabController.index = 1,
-              ),
-            ),
-            SizedBox(width: 8.w),
-            Expanded(
-              child: _industrialButton(
-                "Bulk Import",
-                icon: Icons.upload_file,
-                onPressed: () => _showBulkImportDialog(),
-                isSecondary: true,
-              ),
-            ),
-          ],
-        ),
-      ],
-    )
-        : Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            // 🎬 Pulse on header icon
-            _PulseIcon(
-              child: Container(
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_studentPrimary, _studentLight],
-                  ),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Icon(Icons.people, color: Colors.white, size: 28.sp),
-              ),
-            ),
-            SizedBox(width: 16.w),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
               children: [
-                Text(
-                  "Student Management",
-                  style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 28.sp,
-                    fontWeight: FontWeight.w800,
+                iconBadge(10.w, 24.sp),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Student Management",
+                        style: TextStyle(
+                          color: _textPrimary,
+                          fontSize: 20.sp,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+                      Text(
+                        "Complete student lifecycle",
+                        style: TextStyle(
+                          color: _studentLight,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  "Complete student lifecycle management",
-                  style: TextStyle(
-                    color: _textSecondary,
-                    fontSize: 14.sp,
+              ],
+            ),
+            SizedBox(height: 14.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _industrialButton(
+                    "Add Student",
+                    icon: Icons.person_add,
+                    onPressed: () => _tabController.index = 1,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: _industrialButton(
+                    "Bulk Import",
+                    icon: Icons.upload_file,
+                    onPressed: () => _showBulkImportDialog(),
+                    isSecondary: true,
                   ),
                 ),
               ],
             ),
           ],
         ),
-        Row(
-          children: [
-            _industrialButton(
-              "Export Data",
-              icon: Icons.download,
-              onPressed: () => _exportStudentData(),
-              isSecondary: true,
-            ),
-            SizedBox(width: 12.w),
-            _industrialButton(
-              "Bulk Import",
-              icon: Icons.upload_file,
-              onPressed: () => _showBulkImportDialog(),
-              isSecondary: true,
-            ),
-            SizedBox(width: 12.w),
-            _industrialButton(
-              "Add Student",
-              icon: Icons.person_add,
-              onPressed: () => _tabController.index = 1,
-            ),
-          ],
-        ),
-      ],
+      );
+    }
+
+    return headerCard(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              iconBadge(13.w, 28.sp),
+              SizedBox(width: 16.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: [_textPrimary, _studentLight],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ).createShader(bounds),
+                    child: Text(
+                      "Student Management",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26.sp,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    "Complete student lifecycle management",
+                    style: TextStyle(
+                      color: _textSecondary,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              _industrialButton(
+                "Export Data",
+                icon: Icons.download,
+                onPressed: () => _exportStudentData(),
+                isSecondary: true,
+              ),
+              SizedBox(width: 12.w),
+              _industrialButton(
+                "Bulk Import",
+                icon: Icons.upload_file,
+                onPressed: () => _showBulkImportDialog(),
+                isSecondary: true,
+              ),
+              SizedBox(width: 12.w),
+              _industrialButton(
+                "Add Student",
+                icon: Icons.person_add,
+                onPressed: () => _tabController.index = 1,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTabNavigation() {
     return Container(
-      padding: EdgeInsets.all(4.w),
+      padding: EdgeInsets.all(5.w),
       decoration: BoxDecoration(
         color: _bgCard,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.20),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          gradient: LinearGradient(colors: [_studentPrimary, _studentLight]),
-          borderRadius: BorderRadius.circular(8.r),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [_studentPrimary, _studentDark],
+          ),
+          borderRadius: BorderRadius.circular(10.r),
+          boxShadow: [
+            BoxShadow(
+                color: _studentPrimary.withOpacity(0.30),
+                blurRadius: 10,
+                offset: const Offset(0, 3)),
+          ],
         ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
         labelColor: Colors.white,
         unselectedLabelColor: _textSecondary,
         labelStyle: TextStyle(
           fontSize: 13.sp,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
         ),
         unselectedLabelStyle: TextStyle(
           fontSize: 13.sp,
           fontWeight: FontWeight.w500,
         ),
         tabs: const [
-          Tab(icon: Icon(Icons.people), text: "All Students"),
-          Tab(icon: Icon(Icons.person_add), text: "Add New"),
+          Tab(icon: Icon(Icons.people, size: 18), text: "All Students"),
+          Tab(icon: Icon(Icons.person_add, size: 18), text: "Add New"),
         ],
       ),
     );
@@ -1269,112 +1347,146 @@ class _StudentModuleState extends State<StudentModule>
   }
 
   Widget _buildClassSection(String className, List<DocumentSnapshot> students) {
-    // 🎬 Hover glow on entire class card
     return _HoverCard(
       glowColor: _studentPrimary,
-      borderRadius: BorderRadius.circular(12.r),
+      borderRadius: BorderRadius.circular(16.r),
       child: Container(
         margin: EdgeInsets.only(bottom: 16.h),
         decoration: BoxDecoration(
           color: _bgCard,
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(color: _border),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.20),
+                blurRadius: 18,
+                offset: const Offset(0, 6)),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [_studentPrimary.withOpacity(0.15), _studentDark.withOpacity(0.1)],
-                ),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12.r)),
-              ),
-              child: Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16.r),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
                 children: [
-                  Container(
-                    padding: EdgeInsets.all(8.w),
-                    decoration: BoxDecoration(
-                      color: _studentPrimary.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8.r),
+                  Positioned(
+                    top: -20.h,
+                    right: -10.w,
+                    child: Container(
+                      width: 80.w,
+                      height: 80.w,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _studentPrimary.withOpacity(0.10)),
                     ),
-                    child: Icon(Icons.school, color: _studentPrimary, size: 18.sp),
                   ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _studentPrimary.withOpacity(0.16),
+                          _studentDark.withOpacity(0.08),
+                        ],
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          "Class $className",
-                          style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w700,
+                        Container(
+                          padding: EdgeInsets.all(10.w),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [_studentPrimary, _studentDark],
+                            ),
+                            borderRadius: BorderRadius.circular(12.r),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: _studentPrimary.withOpacity(0.35),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4)),
+                            ],
+                          ),
+                          child: Icon(Icons.school, color: Colors.white, size: 18.sp),
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Class $className",
+                                style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              Text(
+                                "${students.length} student${students.length > 1 ? 's' : ''}",
+                                style: TextStyle(color: _textSecondary, fontSize: 12.sp),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          "${students.length} student${students.length > 1 ? 's' : ''}",
-                          style: TextStyle(color: _textSecondary, fontSize: 12.sp),
+                        Row(
+                          children: [
+                            _iconButton(
+                              Icons.print,
+                              _studentPrimary,
+                                  () => _printClassList(className, students),
+                            ),
+                            SizedBox(width: 8.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                              decoration: BoxDecoration(
+                                color: _studentPrimary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20.r),
+                                border: Border.all(color: _studentPrimary.withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                "Total: ${students.length}",
+                                style: TextStyle(
+                                  color: _studentPrimary,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  Row(
-                    children: [
-                      // 🔥 PRINT BUTTON
-                      _iconButton(
-                        Icons.print,
-                        _studentPrimary,
-                            () => _printClassList(className, students),
-                      ),
-                      SizedBox(width: 8.w),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-                        decoration: BoxDecoration(
-                          color: _studentPrimary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20.r),
-                          border: Border.all(color: _studentPrimary.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          "Total: ${students.length}",
-                          style: TextStyle(
-                            color: _studentPrimary,
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
-            ),
-            Divider(color: _border, height: 1, indent: 16.w, endIndent: 16.w),
+              Divider(color: _border, height: 1, indent: 16.w, endIndent: 16.w),
 
-            // 🔥 BATCH STATS FETCH with MEMOIZED FutureBuilder
-            FutureBuilder<Map<String, Map<String, dynamic>>>(
-              // 🔥 KEY FIX: Use memoized future instead of creating new one every build
-              future: _getMemoizedStatsFuture(className, students),
-              builder: (context, statsSnapshot) {
-                final statsMap = statsSnapshot.data ?? {};
-                final isLoading = !statsSnapshot.hasData && !statsSnapshot.hasError;
+              FutureBuilder<Map<String, Map<String, dynamic>>>(
+                future: _getMemoizedStatsFuture(className, students),
+                builder: (context, statsSnapshot) {
+                  final statsMap = statsSnapshot.data ?? {};
+                  final isLoading = !statsSnapshot.hasData && !statsSnapshot.hasError;
 
-                return widget.isMobile
-                    ? Column(
-                  children: students.asMap().entries.map((entry) =>
-                  // 🎬 Each student card staggered inside class
-                  _AnimatedListItem(
-                    index: entry.key,
-                    child: _buildStudentCard(entry.value, statsMap[entry.value.id], isLoading),
-                  ),
-                  ).toList(),
-                )
-                    : _buildClassTable(students, statsMap, isLoading);
-              },
-            ),
-          ],
+                  return widget.isMobile
+                      ? Column(
+                    children: students.asMap().entries.map((entry) =>
+                        _AnimatedListItem(
+                          index: entry.key,
+                          child: _buildStudentCard(entry.value, statsMap[entry.value.id], isLoading),
+                        ),
+                    ).toList(),
+                  )
+                      : _buildClassTable(students, statsMap, isLoading);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1385,9 +1497,10 @@ class _StudentModuleState extends State<StudentModule>
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 14.h),
           decoration: BoxDecoration(
-            color: _bgElevated.withOpacity(0.5),
+            color: _bgElevated.withOpacity(0.6),
+            border: Border(bottom: BorderSide(color: _border)),
           ),
           child: Row(
             children: [
@@ -1406,7 +1519,6 @@ class _StudentModuleState extends State<StudentModule>
           physics: const NeverScrollableScrollPhysics(),
           itemCount: students.length,
           separatorBuilder: (_, __) => Divider(color: _border, height: 1, indent: 16.w, endIndent: 16.w),
-          // 🎬 Table rows staggered
           itemBuilder: (context, index) => _AnimatedListItem(
             index: index,
             child: _buildStudentTableRow(students[index], statsMap[students[index].id], isLoading),
@@ -2062,7 +2174,6 @@ class _StudentModuleState extends State<StudentModule>
     final attendancePercent = stats?['attendancePercent'] ?? 0.0;
     final feeStatus = stats?['feeStatus'] ?? 'unknown';
 
-    // 🎬 Hover highlight on table rows
     return _HoverCard(
       glowColor: _studentPrimary,
       scaleAmount: 1.005,
@@ -2079,8 +2190,18 @@ class _StudentModuleState extends State<StudentModule>
                     width: 40.w,
                     height: 40.w,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [_studentPrimary, _studentLight]),
-                      borderRadius: BorderRadius.circular(10.r),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_studentPrimary, _studentLight],
+                      ),
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                            color: _studentPrimary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3)),
+                      ],
                     ),
                     child: Center(
                       child: Text(
