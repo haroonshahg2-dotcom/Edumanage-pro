@@ -2344,154 +2344,28 @@ class _StudentModuleState extends State<StudentModule>
   // ═══════════════════════════════════════════════════════════════════════════════
 
   // 🔥 MODIFIED: Accepts pre-fetched stats to avoid re-fetching
-  void _showStudentProfile(DocumentSnapshot student, Map<String, dynamic>? preFetchedStats) {
-    final data = student.data() as Map<String, dynamic>;
-    final studentId = student.id;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        // Use pre-fetched stats if available, otherwise fetch
-        final attendancePercent = preFetchedStats?['attendancePercent'] ?? 0.0;
-        final feeStatus = preFetchedStats?['feeStatus'] ?? 'unknown';
-        final feeStatusText = feeStatus == 'paid' ? 'Paid' : feeStatus == 'partial' ? 'Partial' : feeStatus == 'overdue' ? 'Overdue' : 'Pending';
-        final feeColor = feeStatus == 'paid' ? _accentSuccess : feeStatus == 'partial' ? _accentWarning : _accentDanger;
-        final attendanceColor = attendancePercent >= 75 ? _accentSuccess : attendancePercent >= 60 ? _accentWarning : _accentDanger;
-
-        return Dialog(
-          backgroundColor: _bgCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-          child: Container(
-            width: widget.isMobile ? double.infinity : 600.w,
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
-            padding: EdgeInsets.all(24.w),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Column(
-                      children: [
-                        // 🎬 Pulse on profile avatar
-                        _PulseIcon(
-                          child: Container(
-                            width: 100.w,
-                            height: 100.w,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [_studentPrimary, _studentLight],
-                              ),
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Center(
-                              child: Text(
-                                (data['name'] ?? '')[0].toUpperCase(),
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 40.sp,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-                        Text(
-                          data['name'] ?? 'Unknown',
-                          style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          "Roll: ${data['rollNumber']} • ${data['class']}",
-                          style: TextStyle(
-                            color: _textSecondary,
-                            fontSize: 16.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24.h),
-
-                  Row(
-                    children: [
-                      // 🎬 Stat cards hover
-                      Expanded(child: _HoverCard(
-                        glowColor: _accentSuccess,
-                        borderRadius: BorderRadius.circular(12.r),
-                        child: _buildProfileStatCard("Attendance", "${attendancePercent.toStringAsFixed(0)}%", Icons.calendar_today, attendanceColor),
-                      )),
-                      SizedBox(width: 12.w),
-                      Expanded(child: _HoverCard(
-                        glowColor: _accentSuccess,
-                        borderRadius: BorderRadius.circular(12.r),
-                        child: _buildProfileStatCard("Fees", feeStatusText, Icons.payments, feeColor),
-                      )),
-                      SizedBox(width: 12.w),
-                      Expanded(child: _HoverCard(
-                        glowColor: _accentWarning,
-                        borderRadius: BorderRadius.circular(12.r),
-                        child: _buildProfileStatCard("Exams", "A Grade", Icons.school, _accentWarning),
-                      )),
-                    ],
-                  ),
-                  SizedBox(height: 24.h),
-
-                  _buildInfoSection("Personal Info", [
-                    _buildInfoRow("Full Name", data['name']),
-                    _buildInfoRow("Gender", data['gender']),
-                    _buildInfoRow("Date of Birth", data['dob']),
-                    _buildInfoRow("Blood Group", data['bloodGroup'] ?? 'N/A'),
-                    _buildInfoRow("Age", "${_calculateAge(data['dob'])} years"),
-                  ]),
-                  SizedBox(height: 16.h),
-
-                  _buildInfoSection("Parent Info", [
-                    _buildInfoRow("Father", "${data['fatherName']} (${data['fatherPhone']})"),
-                    _buildInfoRow("Mother", "${data['motherName'] ?? 'N/A'} ${data['motherPhone'] != null ? '(${data['motherPhone']})' : ''}"),
-                  ]),
-                  SizedBox(height: 16.h),
-
-                  _buildInfoSection("Contact Info", [
-                    _buildInfoRow("Address", data['address']),
-                    _buildInfoRow("Emergency", data['emergencyContact']),
-                  ]),
-
-                  SizedBox(height: 24.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _industrialButton(
-                          "Generate ID Card",
-                          icon: Icons.badge,
-                          onPressed: () => _generateIDCard(student),
-                          isSecondary: true,
-                        ),
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: _industrialButton(
-                          "Close",
-                          onPressed: () => Navigator.pop(context),
-                          isSecondary: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+  void _showStudentProfile(
+      DocumentSnapshot student, Map<String, dynamic>? preFetchedStats) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 300),
+        pageBuilder: (_, animation, __) => FadeTransition(
+          opacity: animation,
+          child: StudentProfilePage(
+            student: student,
+            schoolId: widget.schoolId,
+            isMobile: widget.isMobile,
+            showSnackBar: widget.showSnackBar,
+            preFetchedStats: preFetchedStats,
+            onEdit: () => _showEditStudentDialog(student),
+            onGenerateIdCard: () => _generateIDCard(student),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
+
 
   void _showEditStudentDialog(DocumentSnapshot student) {
     final data = student.data() as Map<String, dynamic>;
@@ -2895,7 +2769,7 @@ class _StudentModuleState extends State<StudentModule>
         final feeSnapshot = await FirebaseFirestore.instance
             .collection('schools')
             .doc(widget.schoolId)
-            .collection('feeVouchers')
+            .collection('feePayments')
             .where('studentId', isEqualTo: studentId)
             .limit(1)
             .get();
@@ -4616,20 +4490,6 @@ class _StudentFormState extends State<StudentForm> {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-// 🎨 STUDENT FORM — PROFESSIONAL REDESIGN
-//
-// WHAT TO REPLACE:
-//   Find `@override` just before `Widget build(BuildContext context)` inside
-//   _StudentFormState — replace from that @override all the way to the last }
-//   of the class (which is the closing } of _StudentFormState).
-//
-// WHAT IS NOT CHANGED:
-//   ✅ All controllers (same)       ✅ _handleSave() (same)
-//   ✅ All Firestore logic (same)   ✅ _clearForm() (same)
-//   ✅ All widget.xxx params (same) ✅ _generateRollNumber() (same)
-// ═══════════════════════════════════════════════════════════════════════════
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -5181,12 +5041,6 @@ class _StudentFormState extends State<StudentForm> {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 🆕 NEW HELPER CLASS — _FocusField
-// Paste this OUTSIDE _StudentFormState (just before or after StudentForm class)
-// It handles the focus color animation for text fields
-// ═══════════════════════════════════════════════════════════════════════════
-
 class _FocusField extends StatefulWidget {
   final Widget Function(bool isFocused) builder;
   final Color border;
@@ -5225,3 +5079,804 @@ class _FocusFieldState extends State<_FocusField> {
   @override
   Widget build(BuildContext context) => widget.builder(_isFocused);
 }
+
+// ─── STEP 1: Paste this ENTIRE class at the bottom of student_module.dart ──
+
+class StudentProfilePage extends StatefulWidget {
+  final DocumentSnapshot student;
+  final Map<String, dynamic>? preFetchedStats;
+  final String schoolId;
+  final bool isMobile;
+  final Function(String, {bool isError}) showSnackBar;
+  final VoidCallback onEdit;
+  final VoidCallback onGenerateIdCard;
+
+  const StudentProfilePage({
+    super.key,
+    required this.student,
+    required this.schoolId,
+    required this.isMobile,
+    required this.showSnackBar,
+    required this.onEdit,
+    required this.onGenerateIdCard,
+    this.preFetchedStats,
+  });
+
+  @override
+  State<StudentProfilePage> createState() => _StudentProfilePageState();
+}
+
+class _StudentProfilePageState extends State<StudentProfilePage>
+    with SingleTickerProviderStateMixin {
+
+  // ── Colors (same as parent module) ─────────────────────────────────────
+  static const Color _bgDark       = Color(0xFF0F1117);
+  static const Color _bgCard       = Color(0xFF151821);
+  static const Color _bgElevated   = Color(0xFF1A1D29);
+  static const Color _border       = Color(0xFF2A2E3B);
+  static const Color _textPrimary  = Color(0xFFEEF1F8);
+  static const Color _textSecondary= Color(0xFF8B92A8);
+  static const Color _textMuted    = Color(0xFF5A6072);
+  static const Color _primary      = Color(0xFF7C8CF0);
+  static const Color _primaryLight = Color(0xFF9AA5F3);
+  static const Color _success      = Color(0xFF10B981);
+  static const Color _warning      = Color(0xFFF59E0B);
+  static const Color _danger       = Color(0xFFEF4444);
+
+  late TabController _tabController;
+  late Map<String, dynamic> _data;
+  late String _studentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _data      = widget.student.data() as Map<String, dynamic>;
+    _studentId = widget.student.id;
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  int _calcAge(String? dob) {
+    if (dob == null) return 0;
+    try {
+      final d = DateTime.parse(dob);
+      final n = DateTime.now();
+      int age = n.year - d.year;
+      if (n.month < d.month || (n.month == d.month && n.day < d.day)) age--;
+      return age;
+    } catch (_) { return 0; }
+  }
+
+  String _fmtCurrency(double v) {
+    if (v >= 100000) return '₨${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000)   return '₨${(v / 1000).toStringAsFixed(1)}K';
+    return '₨${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final attPct   = widget.preFetchedStats?['attendancePercent'] ?? 0.0;
+    final feeStatus = widget.preFetchedStats?['feeStatus'] ?? 'unknown';
+
+    return Scaffold(
+      backgroundColor: _bgDark,
+      body: Column(
+        children: [
+          _buildHeader(attPct, feeStatus),
+          _buildTabBar(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOverviewTab(),
+                _buildAttendanceTab(),
+                _buildFeeTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── HEADER ──────────────────────────────────────────────────────────────
+  Widget _buildHeader(double attPct, String feeStatus) {
+    final feeColor = feeStatus == 'paid'
+        ? _success : feeStatus == 'partial' ? _warning : _danger;
+    final feeLabel = feeStatus == 'paid'
+        ? 'Paid' : feeStatus == 'partial' ? 'Partial' : 'Pending';
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        border: Border(bottom: BorderSide(color: _border)),
+      ),
+      child: Column(
+        children: [
+          // ── Top bar ──────────────────────────────────────────────────
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: _bgElevated,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: _border),
+                  ),
+                  child: Icon(Icons.arrow_back_ios_new_rounded,
+                      color: _textSecondary, size: 16.sp),
+                ),
+              ),
+              SizedBox(width: 14.w),
+              Expanded(
+                child: Text('Student Profile',
+                    style: TextStyle(color: _textPrimary,
+                        fontSize: 18.sp, fontWeight: FontWeight.w700)),
+              ),
+              // Edit button
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onEdit();
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: _primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: _primary.withOpacity(0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.edit_outlined, color: _primary, size: 15.sp),
+                    SizedBox(width: 6.w),
+                    Text('Edit', style: TextStyle(
+                        color: _primary, fontSize: 13.sp,
+                        fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              // ID Card button
+              GestureDetector(
+                onTap: widget.onGenerateIdCard,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: _success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: _success.withOpacity(0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.badge_outlined, color: _success, size: 15.sp),
+                    SizedBox(width: 6.w),
+                    Text('ID Card', style: TextStyle(
+                        color: _success, fontSize: 13.sp,
+                        fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+
+          // ── Avatar + name + badges ───────────────────────────────────
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 72.w, height: 72.w,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [_primary, _primaryLight]),
+                  borderRadius: BorderRadius.circular(16.r),
+                  boxShadow: [BoxShadow(
+                      color: _primary.withOpacity(0.35),
+                      blurRadius: 16, offset: const Offset(0, 6))],
+                ),
+                child: _data['photoUrl'] != null
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(16.r),
+                  child: Image.network(_data['photoUrl'],
+                      fit: BoxFit.cover),
+                )
+                    : Center(
+                  child: Text(
+                    (_data['name'] ?? 'S')[0].toUpperCase(),
+                    style: TextStyle(color: Colors.white,
+                        fontSize: 30.sp, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              SizedBox(width: 16.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_data['name'] ?? 'Unknown',
+                        style: TextStyle(color: _textPrimary,
+                            fontSize: 20.sp, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Roll: ${_data['rollNumber'] ?? 'N/A'} · Class ${_data['class'] ?? 'N/A'}',
+                      style: TextStyle(color: _textSecondary, fontSize: 13.sp),
+                    ),
+                    SizedBox(height: 8.h),
+                    Row(children: [
+                      _badge(feeLabel, feeColor),
+                      SizedBox(width: 6.w),
+                      _badge(
+                        '${attPct.toStringAsFixed(0)}% Att.',
+                        attPct >= 75 ? _success : _warning,
+                      ),
+                      SizedBox(width: 6.w),
+                      _badge(
+                        (_data['status'] ?? 'active').toUpperCase(),
+                        _data['status'] == 'active' ? _success : _danger,
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _badge(String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Text(label, style: TextStyle(
+          color: color, fontSize: 10.sp, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  // ── TAB BAR ─────────────────────────────────────────────────────────────
+  Widget _buildTabBar() {
+    return Container(
+      color: _bgCard,
+      child: TabBar(
+        controller: _tabController,
+        labelColor: _primary,
+        unselectedLabelColor: _textMuted,
+        indicatorColor: _primary,
+        indicatorWeight: 2,
+        labelStyle: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600),
+        tabs: const [
+          Tab(text: 'Overview'),
+          Tab(text: 'Attendance'),
+          Tab(text: 'Fee History'),
+        ],
+      ),
+    );
+  }
+
+  // ── TAB 1: OVERVIEW ─────────────────────────────────────────────────────
+  Widget _buildOverviewTab() {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(16.w),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          // KPI row
+          Row(children: [
+            Expanded(child: _kpiCard('Attendance',
+                '${(widget.preFetchedStats?['attendancePercent'] ?? 0.0).toStringAsFixed(0)}%',
+                Icons.fact_check_rounded, _warning)),
+            SizedBox(width: 10.w),
+            Expanded(child: _kpiCard('Age',
+                '${_calcAge(_data['dob'])} yrs',
+                Icons.cake_outlined, _primary)),
+            SizedBox(width: 10.w),
+            Expanded(child: _kpiCard('Session',
+                _data['session'] ?? 'N/A',
+                Icons.calendar_month_outlined, _success)),
+          ]),
+          SizedBox(height: 16.h),
+
+          // Personal info
+          _infoCard('Personal Information', Icons.person_outline_rounded, _primary, [
+            _infoRow(Icons.badge_outlined,         'Full Name',    _data['name']),
+            _infoRow(Icons.wc_rounded,             'Gender',       _data['gender']),
+            _infoRow(Icons.cake_outlined,          'Date of Birth',_data['dob']),
+            _infoRow(Icons.bloodtype_outlined,     'Blood Group',  _data['bloodGroup'] ?? 'N/A'),
+            _infoRow(Icons.class_outlined,         'Class',        _data['class']),
+            _infoRow(Icons.numbers_outlined,       'Roll Number',  _data['rollNumber']),
+          ]),
+          SizedBox(height: 12.h),
+
+          // Parent info
+          _infoCard('Parent Information', Icons.family_restroom_rounded, _success, [
+            _infoRow(Icons.person_2_outlined,      "Father's Name",  _data['fatherName']),
+            _infoRow(Icons.phone_outlined,         "Father's Phone", _data['fatherPhone']),
+            _infoRow(Icons.credit_card_outlined,   "Father's CNIC",  _data['fatherCNIC'] ?? 'N/A'),
+            _infoRow(Icons.person_3_outlined,      "Mother's Name",  _data['motherName'] ?? 'N/A'),
+            _infoRow(Icons.phone_android_outlined, "Mother's Phone", _data['motherPhone'] ?? 'N/A'),
+          ]),
+          SizedBox(height: 12.h),
+
+          // Contact
+          _infoCard('Address & Emergency', Icons.location_on_outlined, _warning, [
+            _infoRow(Icons.home_outlined,      'Address',           _data['address']),
+            _infoRow(Icons.emergency_outlined, 'Emergency Contact', _data['emergencyContact']),
+          ]),
+          SizedBox(height: 24.h),
+        ],
+      ),
+    );
+  }
+
+  Widget _kpiCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(7.w),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Icon(icon, color: color, size: 16.sp),
+          ),
+          SizedBox(height: 10.h),
+          Text(value, style: TextStyle(
+              color: _textPrimary, fontSize: 18.sp, fontWeight: FontWeight.w800)),
+          SizedBox(height: 2.h),
+          Text(label, style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoCard(String title, IconData icon, Color color,
+      List<Widget> rows) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 14.h, 16.w, 10.h),
+            child: Row(children: [
+              Container(
+                padding: EdgeInsets.all(7.w),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Icon(icon, color: color, size: 15.sp),
+              ),
+              SizedBox(width: 10.w),
+              Text(title, style: TextStyle(
+                  color: _textPrimary, fontSize: 14.sp,
+                  fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          Divider(color: _border, height: 1),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            child: Column(children: rows),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String? value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 7.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: _textMuted, size: 15.sp),
+          SizedBox(width: 10.w),
+          SizedBox(
+            width: 110.w,
+            child: Text(label, style: TextStyle(
+                color: _textSecondary, fontSize: 12.sp)),
+          ),
+          Expanded(
+            child: Text(value ?? 'N/A',
+                style: TextStyle(
+                    color: _textPrimary, fontSize: 13.sp,
+                    fontWeight: FontWeight.w500),
+                textAlign: TextAlign.right),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── TAB 2: ATTENDANCE HISTORY ────────────────────────────────────────────
+  Widget _buildAttendanceTab() {
+    // Fetch last 30 days attendance from
+    // schools/{schoolId}/attendance/{yyyy-MM-dd}/records/{studentId}
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _fetchAttendanceHistory(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return _loadingState('Loading attendance...');
+        }
+        final records = snap.data!;
+        if (records.isEmpty) {
+          return _emptyState(Icons.fact_check_outlined, 'No attendance records');
+        }
+
+        // Calculate summary
+        final present = records.where((r) => r['status'] == 'present').length;
+        final absent  = records.where((r) => r['status'] == 'absent').length;
+        final late    = records.where((r) => r['status'] == 'late').length;
+        final total   = records.length;
+        final pct     = total > 0 ? ((present / total) * 100) : 0.0;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              // Summary row
+              Row(children: [
+                Expanded(child: _attKpi('Present', present, _success)),
+                SizedBox(width: 8.w),
+                Expanded(child: _attKpi('Absent', absent, _danger)),
+                SizedBox(width: 8.w),
+                Expanded(child: _attKpi('Late', late, _warning)),
+                SizedBox(width: 8.w),
+                Expanded(child: _attKpi('Rate',
+                    '${pct.toStringAsFixed(0)}%', _primary, isStr: true)),
+              ]),
+              SizedBox(height: 16.h),
+
+              // Progress bar
+              Container(
+                padding: EdgeInsets.all(14.w),
+                decoration: BoxDecoration(
+                  color: _bgCard,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: _border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Last 30 Days', style: TextStyle(
+                            color: _textPrimary, fontSize: 13.sp,
+                            fontWeight: FontWeight.w600)),
+                        Text('${pct.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                                color: pct >= 75 ? _success : _warning,
+                                fontSize: 13.sp, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    SizedBox(height: 10.h),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4.r),
+                      child: LinearProgressIndicator(
+                        value: (pct / 100).clamp(0.0, 1.0),
+                        minHeight: 6.h,
+                        backgroundColor: _bgElevated,
+                        valueColor: AlwaysStoppedAnimation(
+                            pct >= 75 ? _success : _warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 14.h),
+
+              // Day-by-day list
+              Container(
+                decoration: BoxDecoration(
+                  color: _bgCard,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: _border),
+                ),
+                child: Column(
+                  children: records.asMap().entries.map((e) {
+                    final r   = e.value;
+                    final status = r['status'] as String;
+                    final color = status == 'present'
+                        ? _success
+                        : status == 'late' ? _warning : _danger;
+                    final isLast = e.key == records.length - 1;
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.w, vertical: 12.h),
+                          child: Row(children: [
+                            Container(
+                              width: 8.w, height: 8.w,
+                              decoration: BoxDecoration(
+                                  color: color, shape: BoxShape.circle),
+                            ),
+                            SizedBox(width: 12.w),
+                            Expanded(
+                              child: Text(r['date'],
+                                  style: TextStyle(
+                                      color: _textPrimary, fontSize: 13.sp)),
+                            ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 10.w, vertical: 3.h),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20.r),
+                              ),
+                              child: Text(
+                                status[0].toUpperCase() + status.substring(1),
+                                style: TextStyle(
+                                    color: color, fontSize: 11.sp,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        if (!isLast) Divider(color: _border, height: 1),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+              SizedBox(height: 24.h),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _attKpi(String label, dynamic value, Color color,
+      {bool isStr = false}) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10.r),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(children: [
+        Text(isStr ? value : value.toString(),
+            style: TextStyle(color: color,
+                fontSize: 18.sp, fontWeight: FontWeight.w800)),
+        SizedBox(height: 2.h),
+        Text(label, style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+      ]),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAttendanceHistory() async {
+    final results = <Map<String, dynamic>>[];
+    final now     = DateTime.now();
+    final fmt     = DateFormat('yyyy-MM-dd');
+
+    // Check last 30 days
+    final futures = <Future<void>>[];
+    for (int i = 0; i < 30; i++) {
+      final dateStr = fmt.format(now.subtract(Duration(days: i)));
+      futures.add(
+        FirebaseFirestore.instance
+            .collection('schools')
+            .doc(widget.schoolId)
+            .collection('attendance')
+            .doc(dateStr)
+            .collection('records')
+            .doc(_studentId)
+            .get()
+            .then((doc) {
+          if (doc.exists) {
+            final status = (doc.data()?['status'] ?? 'absent')
+                .toString().toLowerCase();
+            results.add({'date': dateStr, 'status': status});
+          }
+        }).catchError((_) {}),
+      );
+    }
+    await Future.wait(futures);
+    results.sort((a, b) => b['date'].compareTo(a['date']));
+    return results;
+  }
+
+  // ── TAB 3: FEE HISTORY ──────────────────────────────────────────────────
+  Widget _buildFeeTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('feePayments')
+          .where('studentId', isEqualTo: _studentId)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData) return _loadingState('Loading fee history...');
+
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) {
+          return _emptyState(Icons.receipt_long_outlined, 'No fee payments found');
+        }
+
+        // Calculate total paid
+        double totalPaid = 0;
+        for (final doc in docs) {
+          final d = doc.data() as Map<String, dynamic>;
+          totalPaid += ((d['amount'] ?? 0) as num).toDouble();
+        }
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              // Total paid summary
+              Container(
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: _bgCard,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: _success.withOpacity(0.25)),
+                ),
+                child: Row(children: [
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: _success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Icon(Icons.account_balance_wallet_outlined,
+                        color: _success, size: 24.sp),
+                  ),
+                  SizedBox(width: 14.w),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Total Paid', style: TextStyle(
+                        color: _textSecondary, fontSize: 12.sp)),
+                    Text(_fmtCurrency(totalPaid), style: TextStyle(
+                        color: _success, fontSize: 22.sp,
+                        fontWeight: FontWeight.w800)),
+                    Text('${docs.length} payment${docs.length > 1 ? 's' : ''}',
+                        style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+                  ]),
+                ]),
+              ),
+              SizedBox(height: 14.h),
+
+              // Payment list
+              Container(
+                decoration: BoxDecoration(
+                  color: _bgCard,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: _border),
+                ),
+                child: Column(
+                  children: docs.asMap().entries.map((e) {
+                    final d       = e.value.data() as Map<String, dynamic>;
+                    final amount  = ((d['amount'] ?? 0) as num).toDouble();
+                    final isLast  = e.key == docs.length - 1;
+                    final ts      = d['createdAt'] as Timestamp?;
+                    final dateStr = ts != null
+                        ? DateFormat('dd MMM yyyy').format(ts.toDate())
+                        : 'N/A';
+                    final month   = d['month'] ?? d['forMonth'] ?? '';
+                    final method  = d['paymentMethod'] ?? d['method'] ?? 'Cash';
+
+                    return Column(children: [
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 12.h),
+                        child: Row(children: [
+                          // Receipt icon
+                          Container(
+                            width: 40.w, height: 40.w,
+                            decoration: BoxDecoration(
+                              color: _success.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: Icon(Icons.receipt_outlined,
+                                color: _success, size: 18.sp),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    month.isNotEmpty
+                                        ? 'Fee — $month' : 'Fee Payment',
+                                    style: TextStyle(
+                                        color: _textPrimary, fontSize: 13.sp,
+                                        fontWeight: FontWeight.w600)),
+                                Text('$dateStr · $method',
+                                    style: TextStyle(
+                                        color: _textMuted, fontSize: 11.sp)),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(_fmtCurrency(amount),
+                                  style: TextStyle(
+                                      color: _success, fontSize: 14.sp,
+                                      fontWeight: FontWeight.w700)),
+                              Container(
+                                margin: EdgeInsets.only(top: 3.h),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 7.w, vertical: 2.h),
+                                decoration: BoxDecoration(
+                                  color: _success.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10.r),
+                                ),
+                                child: Text('Paid', style: TextStyle(
+                                    color: _success, fontSize: 10.sp,
+                                    fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                          ),
+                        ]),
+                      ),
+                      if (!isLast) Divider(color: _border, height: 1),
+                    ]);
+                  }).toList(),
+                ),
+              ),
+              SizedBox(height: 24.h),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Shared states ────────────────────────────────────────────────────────
+  Widget _loadingState(String msg) {
+    return Center(child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        CircularProgressIndicator(color: _primary, strokeWidth: 2),
+        SizedBox(height: 16.h),
+        Text(msg, style: TextStyle(color: _textMuted, fontSize: 13.sp)),
+      ],
+    ));
+  }
+
+  Widget _emptyState(IconData icon, String msg) {
+    return Center(child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: _border, size: 48.sp),
+        SizedBox(height: 12.h),
+        Text(msg, style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+      ],
+    ));
+  }
+}
+
