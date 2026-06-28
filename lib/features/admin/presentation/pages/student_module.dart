@@ -12,6 +12,10 @@ import 'package:universal_html/html.dart' as html;
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //                    ANIMATION HELPERS
@@ -4315,7 +4319,10 @@ class _StudentFormState extends State<StudentForm> {
 
   String? _selectedGender;
   String? _selectedBloodGroup;
-  bool _isSaving = false;
+  bool    _isSaving      = false;
+  XFile?  _pickedPhoto;           // ← newly picked photo (not yet uploaded)
+  String? _uploadedPhotoUrl;      // ← existing photoUrl from Firestore
+  bool    _isUploadingPhoto = false;
 
   bool get _isEdit => widget.existingStudent != null;
 
@@ -4336,6 +4343,7 @@ class _StudentFormState extends State<StudentForm> {
 
     _selectedGender = data?['gender'];
     _selectedBloodGroup = data?['bloodGroup'];
+    _uploadedPhotoUrl   = data?['photoUrl'];
   }
 
   @override
@@ -4351,6 +4359,51 @@ class _StudentFormState extends State<StudentForm> {
     _classController.dispose();
     super.dispose();
   }
+
+  // Call this to let user pick photo from gallery or camera
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final file   = await picker.pickImage(
+        source: source,
+        imageQuality: 75,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      if (file == null) return;
+      setState(() {
+        _pickedPhoto = file;
+      });
+    } catch (e) {
+      widget.showSnackBar('❌ Could not pick image: $e', isError: true);
+    }
+  }
+
+  // Uploads photo to Firebase Storage and returns download URL
+  Future<String?> _uploadPhoto(String studentId) async {
+    if (_pickedPhoto == null) return _uploadedPhotoUrl; // no new photo
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final ref = FirebaseStorage.instance
+          .ref('schools/${widget.schoolId}/students/$studentId/photo.jpg');
+
+      if (kIsWeb) {
+        final bytes = await _pickedPhoto!.readAsBytes();
+        await ref.putData(bytes,
+            SettableMetadata(contentType: 'image/jpeg'));
+      } else {
+        await ref.putFile(File(_pickedPhoto!.path));
+      }
+      final url = await ref.getDownloadURL();
+      setState(() => _isUploadingPhoto = false);
+      return url;
+    } catch (e) {
+      setState(() => _isUploadingPhoto = false);
+      widget.showSnackBar('❌ Photo upload failed: $e', isError: true);
+      return _uploadedPhotoUrl; // keep old url on failure
+    }
+  }
+
 
   void _clearForm() {
     _nameController.clear();
@@ -4420,9 +4473,19 @@ class _StudentFormState extends State<StudentForm> {
   }
 
   // 🔥 FETCH CLASSES: Get distinct classes from Firestore for dropdown
+  // ═══════════════════════════════════════════════════════════════════════════
+// 🔧 FIX — Replace your _handleSave() method (line 4423 to 4494)
+//
+// HOW:
+//   Press Ctrl+G → type 4423 → Enter
+//   Select from line 4423 all the way to the closing } on line 4494
+//   Delete → paste this
+// ═══════════════════════════════════════════════════════════════════════════
+
   Future<void> _handleSave() async {
     final className = _classController.text.trim();
 
+    // ── Validation ───────────────────────────────────────────────────────
     if (_nameController.text.isEmpty ||
         className.isEmpty ||
         _selectedGender == null ||
@@ -4431,64 +4494,118 @@ class _StudentFormState extends State<StudentForm> {
         _fatherPhoneController.text.isEmpty ||
         _addressController.text.isEmpty ||
         _emergencyContactController.text.isEmpty) {
-      widget.showSnackBar("Please fill all required fields (*)", isError: true);
+      widget.showSnackBar('Please fill all required fields (*)', isError: true);
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
+      // ── STEP 1: Generate roll number ─────────────────────────────────
       String rollNumber = _rollController.text;
       if (!_isEdit || rollNumber.isEmpty) {
         rollNumber = await _generateRollNumber(className);
       }
 
-      final studentData = {
-        'name': _nameController.text.trim(),
-        'rollNumber': rollNumber,
-        'class': className,
-        'gender': _selectedGender,
-        'bloodGroup': _selectedBloodGroup,
-        'dob': _dobController.text,
-        'fatherName': _fatherNameController.text.trim(),
-        'fatherPhone': _fatherPhoneController.text.trim(),
-        'fatherCNIC': _fatherCNICController.text.trim(),
-        'address': _addressController.text.trim(),
+      // ── STEP 2: Save student to Firestore FIRST (without photo) ──────
+      // This way student is always saved even if photo upload fails
+      final studentData = <String, dynamic>{
+        'name':             _nameController.text.trim(),
+        'rollNumber':       rollNumber,
+        'class':            className,
+        'gender':           _selectedGender,
+        'bloodGroup':       _selectedBloodGroup,
+        'dob':              _dobController.text,
+        'fatherName':       _fatherNameController.text.trim(),
+        'fatherPhone':      _fatherPhoneController.text.trim(),
+        'fatherCNIC':       _fatherCNICController.text.trim(),
+        'address':          _addressController.text.trim(),
         'emergencyContact': _emergencyContactController.text.trim(),
-        'status': 'active',
-        'session': _getCurrentSession(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'status':           'active',
+        'session':          _getCurrentSession(),
+        'updatedAt':        FieldValue.serverTimestamp(),
       };
 
+      String savedStudentId;
+
       if (_isEdit) {
+        savedStudentId = widget.existingStudent!.id;
         await widget.existingStudent!.reference.update(studentData);
-        widget.showSnackBar("✅ Student updated successfully!");
       } else {
-        studentData['schoolId'] = widget.schoolId;
+        studentData['schoolId']  = widget.schoolId;
         studentData['createdAt'] = FieldValue.serverTimestamp();
         studentData['createdBy'] = FirebaseAuth.instance.currentUser?.uid;
 
-        await FirebaseFirestore.instance
+        final docRef = await FirebaseFirestore.instance
             .collection('schools')
             .doc(widget.schoolId)
             .collection('students')
             .add(studentData);
 
-        widget.showSnackBar("✅ Student added with Roll: $rollNumber");
-        _clearForm();
+        savedStudentId = docRef.id;
       }
 
-      if (!_isEdit) {
+      // ── STEP 3: Upload photo AFTER student is saved ───────────────────
+      // Now we have a real studentId to use in Storage path
+      if (_pickedPhoto != null) {
+        try {
+          final ref = FirebaseStorage.instance.ref(
+            'schools/${widget.schoolId}/students/$savedStudentId/photo.jpg',
+          );
+
+          // Upload
+          if (kIsWeb) {
+            final bytes = await _pickedPhoto!.readAsBytes();
+            await ref.putData(
+              bytes,
+              SettableMetadata(contentType: 'image/jpeg'),
+            );
+          } else {
+            await ref.putFile(File(_pickedPhoto!.path));
+          }
+
+          // Get URL and update Firestore doc with photoUrl
+          final photoUrl = await ref.getDownloadURL();
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(widget.schoolId)
+              .collection('students')
+              .doc(savedStudentId)
+              .update({'photoUrl': photoUrl});
+
+        } catch (photoError) {
+          // Student was already saved — just warn about photo
+          debugPrint('Photo upload error: $photoError');
+          widget.showSnackBar(
+            '✅ Student saved! But photo failed to upload. Try editing to add photo.',
+          );
+          if (!_isEdit) _clearForm();
+          return; // exit early, student IS saved
+        }
+      }
+
+      // ── STEP 4: Success ───────────────────────────────────────────────
+      if (_isEdit) {
+        widget.showSnackBar('✅ Student updated successfully!');
+      } else {
+        widget.showSnackBar('✅ Student added with Roll: $rollNumber');
+        _clearForm();
         widget.onSaved?.call();
       }
+
     } catch (e) {
-      widget.showSnackBar("❌ Error: $e", isError: true);
+      debugPrint('Save error: $e');
+      widget.showSnackBar('❌ Error: $e', isError: true);
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _isSaving         = false;
+          _isUploadingPhoto = false;
+        });
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -4661,18 +4778,18 @@ class _StudentFormState extends State<StudentForm> {
         ),
         SizedBox(height: 28.h),
 
-        // ── SECTION 4: Documents ──────────────────────────────────────────
+        // ── SECTION 4: Student Photo ──────────────────────────────────────
         _FadeIn(
           delay: const Duration(milliseconds: 430),
-          child: _sectionHeader('Documents', Icons.folder_outlined,
-              const Color(0xFFF2A93B)),
+          child: _sectionHeader('Student Photo',
+              Icons.photo_camera_outlined, const Color(0xFFF2A93B)),
         ),
         SizedBox(height: 16.h),
-
         _FadeIn(
           delay: const Duration(milliseconds: 460),
-          child: _documentUploadBox(),
+          child: _photoPicker(),
         ),
+
         SizedBox(height: 32.h),
 
         // ── Save / Update Button ──────────────────────────────────────────
@@ -4952,44 +5069,253 @@ class _StudentFormState extends State<StudentForm> {
     );
   }
 
-  /// Document upload box (coming soon — no logic change)
-  Widget _documentUploadBox() {
-    return Container(
-      padding: EdgeInsets.all(24.w),
-      decoration: BoxDecoration(
-        color: widget.bgElevated,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: widget.border,
-          style: BorderStyle.solid,
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2A93B).withOpacity(0.08),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFF2A93B).withOpacity(0.2)),
+  Widget _photoPicker() {
+    // Decide what to show as preview
+    final hasNewPhoto   = _pickedPhoto != null;
+    final hasExisting   = _uploadedPhotoUrl != null && !hasNewPhoto;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            // ── Photo preview box ───────────────────────────────────────
+            GestureDetector(
+              onTap: () => _showPhotoSourceSheet(),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 100.w,
+                height: 100.w,
+                decoration: BoxDecoration(
+                  color: widget.bgElevated,
+                  borderRadius: BorderRadius.circular(14.r),
+                  border: Border.all(
+                    color: hasNewPhoto || hasExisting
+                        ? const Color(0xFFF2A93B).withOpacity(0.5)
+                        : widget.border,
+                    width: hasNewPhoto || hasExisting ? 2 : 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13.r),
+                  child: _isUploadingPhoto
+                      ? Center(
+                    child: CircularProgressIndicator(
+                        color: const Color(0xFFF2A93B), strokeWidth: 2),
+                  )
+                      : hasNewPhoto
+                      ? kIsWeb
+                      ? Image.network(_pickedPhoto!.path,
+                      fit: BoxFit.cover)
+                      : Image.file(File(_pickedPhoto!.path),
+                      fit: BoxFit.cover)
+                      : hasExisting
+                      ? CachedNetworkImage(
+                    imageUrl: _uploadedPhotoUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Center(
+                      child: CircularProgressIndicator(
+                        color: const Color(0xFFF2A93B),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) =>
+                        _photoPlaceholder(),
+                  )
+                      : _photoPlaceholder(),
+                ),
+              ),
             ),
-            child: Icon(Icons.cloud_upload_outlined,
-                color: const Color(0xFFF2A93B), size: 28.sp),
-          ),
-          SizedBox(height: 12.h),
-          Text(
-            'Upload Photo & Documents',
-            style: TextStyle(color: widget.textSecondary, fontSize: 14.sp, fontWeight: FontWeight.w600),
-          ),
+            SizedBox(width: 16.w),
+
+            // ── Action buttons ──────────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasNewPhoto || hasExisting
+                        ? 'Photo selected'
+                        : 'No photo yet',
+                    style: TextStyle(
+                      color: hasNewPhoto || hasExisting
+                          ? widget.textPrimary
+                          : widget.textMuted,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    'JPG, PNG · max 2MB\nSquare photo recommended',
+                    style: TextStyle(
+                        color: widget.textMuted, fontSize: 11.sp, height: 1.5),
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(children: [
+                    // Camera
+                    _photoBtn(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Camera',
+                      onTap: () => _pickPhoto(ImageSource.camera),
+                    ),
+                    SizedBox(width: 8.w),
+                    // Gallery
+                    _photoBtn(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Gallery',
+                      onTap: () => _pickPhoto(ImageSource.gallery),
+                    ),
+                    // Remove (only show if photo exists)
+                    if (hasNewPhoto || hasExisting) ...[
+                      SizedBox(width: 8.w),
+                      _photoBtn(
+                        icon: Icons.delete_outline_rounded,
+                        label: 'Remove',
+                        isRemove: true,
+                        onTap: () => setState(() {
+                          _pickedPhoto     = null;
+                          _uploadedPhotoUrl = null;
+                        }),
+                      ),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _photoPlaceholder() {
+    return Container(
+      color: widget.bgElevated,
+      child: Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.person_outline_rounded,
+              color: widget.textMuted, size: 32.sp),
           SizedBox(height: 4.h),
-          Text(
-            'Photo, Birth Certificate, etc. — Coming soon',
-            style: TextStyle(color: widget.textMuted, fontSize: 11.sp),
-          ),
-        ],
+          Text('Tap to add', style: TextStyle(
+              color: widget.textMuted, fontSize: 9.sp)),
+        ]),
       ),
     );
   }
+
+  Widget _photoBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isRemove = false,
+  }) {
+    final color = isRemove
+        ? widget.accentDanger
+        : const Color(0xFFF2A93B);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 7.h),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: color.withOpacity(0.25)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: color, size: 14.sp),
+          SizedBox(width: 4.w),
+          Text(label, style: TextStyle(
+              color: color, fontSize: 11.sp, fontWeight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+
+  void _showPhotoSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: widget.bgCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+      ),
+      builder: (_) => Padding(
+        padding: EdgeInsets.all(20.w),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 36.w, height: 4.h,
+            decoration: BoxDecoration(
+              color: widget.border,
+              borderRadius: BorderRadius.circular(2.r),
+            ),
+          ),
+          SizedBox(height: 16.h),
+          Text('Select Photo Source',
+              style: TextStyle(
+                  color: widget.textPrimary,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w700)),
+          SizedBox(height: 20.h),
+          Row(children: [
+            Expanded(child: _sourceOption(
+              icon: Icons.camera_alt_rounded,
+              label: 'Camera',
+              sub: 'Take a new photo',
+              color: const Color(0xFF7C8CF0),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.camera);
+              },
+            )),
+            SizedBox(width: 12.w),
+            Expanded(child: _sourceOption(
+              icon: Icons.photo_library_rounded,
+              label: 'Gallery',
+              sub: 'Choose existing',
+              color: const Color(0xFF3DD68B),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.gallery);
+              },
+            )),
+          ]),
+          SizedBox(height: 8.h),
+        ]),
+      ),
+    );
+  }
+
+  Widget _sourceOption({
+    required IconData icon,
+    required String label,
+    required String sub,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(children: [
+          Icon(icon, color: color, size: 28.sp),
+          SizedBox(height: 8.h),
+          Text(label, style: TextStyle(
+              color: widget.textPrimary,
+              fontSize: 14.sp, fontWeight: FontWeight.w600)),
+          SizedBox(height: 2.h),
+          Text(sub, style: TextStyle(
+              color: widget.textMuted, fontSize: 11.sp)),
+        ]),
+      ),
+    );
+  }
+
+
 
   /// Save / Update button with gradient + loading state
   Widget _saveButton() {
