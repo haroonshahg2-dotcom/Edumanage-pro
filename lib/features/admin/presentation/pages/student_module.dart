@@ -270,21 +270,6 @@ class _FadeInState extends State<_FadeIn> with SingleTickerProviderStateMixin {
   }
 }
 
-/// ═══════════════════════════════════════════════════════════════════════════════
-///                    HYBRID STUDENT MODULE (SaaS READY)
-/// ═══════════════════════════════════════════════════════════════════════════════
-///
-/// FEATURES:
-/// 1. COMPLETE CRUD: Create, Read, Update, Delete + Soft Delete
-/// 2. AUTO ROLL NUMBER: Unique roll generation per class
-/// 3. PARENT PORTAL: Father/Mother info with contact
-/// 4. FEE INTEGRATION: Real-time fee status from fees collection
-/// 5. ATTENDANCE %: Live calculation from attendance collection
-/// 6. DOCUMENT READY: Firebase Storage hooks for photo/docs
-/// 7. BULK IMPORT: CSV/Excel ready structure
-/// 8. ADVANCED FILTER: Multi-class, status, fee status search
-/// 9. ID CARD GEN: Auto-generate with QR code placeholder
-
 class StudentModule extends StatefulWidget {
   final String schoolId;
   final String schoolName;
@@ -309,8 +294,6 @@ class StudentModule extends StatefulWidget {
 
 class _StudentModuleState extends State<StudentModule>
     with TickerProviderStateMixin {
-// 🔥 NEW HELPER METHODS for PDF Table cells
-  // 🔥 HELPER METHODS for PDF Table cells
   pw.Widget _pdfHeaderCell(String text) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),

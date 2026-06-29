@@ -68,17 +68,22 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
       ),
     );
   }
-  static const Color _bgDark       = Color(0xFF0B0F19);
-  static const Color _bgCard       = Color(0xFF151B2B);
-  static const Color _bgElevated   = Color(0xFF1E2538);
+  // ─── FOUNDATION (Sidebar se match) ──────────────────────────
+  static const Color _bgDark      = Color(0xFF0F1117);   // ← Sidebar bg (was 0B1120)
+  static const Color _bgCard      = Color(0xFF151821);   // ← Slightly lighter
+  static const Color _bgElevated  = Color(0xFF1A1D29);   // ← Sidebar elevated
+  static const Color _border      = Color(0xFF2A2E3B);   // ← Sidebar border
+
   static const Color _accentSuccess = Color(0xFF22C55E);
   static const Color _accentWarning = Color(0xFFF59E0B);
   static const Color _accentDanger  = Color(0xFFEF4444);
+
   static const Color _accentInfo    = Color(0xFF3B82F6);
-  static const Color _textPrimary   = Color(0xFFF8FAFC);
-  static const Color _textSecondary = Color(0xFF94A3B8);
-  static const Color _textMuted     = Color(0xFF64748B);
-  static const Color _border        = Color(0xFF2D3748);
+
+  static const Color _textPrimary   = Color(0xFFEEF1F8);   // ← Sidebar active text
+  static const Color _textSecondary = Color(0xFF8B92A8);   // ← Sidebar text
+  static const Color _textMuted     = Color(0xFF5A6072);   // ← Sidebar muted
+ // static const Color _border        = Color(0xFF2D3748);
   static const Color _examPrimary   = Color(0xFF8B5CF6);
   static const Color _examLight     = Color(0xFFA78BFA);
 
@@ -196,36 +201,105 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
   }
 
   Widget _buildModuleHeader() {
-    return widget.isMobile
-        ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [_headerIcon(), SizedBox(width: 12.w), Expanded(child: _headerText())]),
-      SizedBox(height: 12.h),
-      Row(children: [
-        Expanded(child: _btn("Create Exam", icon: Icons.add, onTap: _showCreateExamDialog)),
-        SizedBox(width: 8.w),
-        Expanded(child: _btn("Settings", icon: Icons.settings, onTap: _showGradingSettings, secondary: true)),
+    Widget bannerContent({required Widget child}) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(20.r),
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(widget.isMobile ? 16.w : 22.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_examPrimary.withOpacity(0.18), _bgCard],
+            ),
+            border: Border.all(color: _examPrimary.withOpacity(0.25)),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -30.h,
+                right: -20.w,
+                child: Container(
+                  width: 130.w,
+                  height: 130.w,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _examPrimary.withOpacity(0.10)),
+                ),
+              ),
+              Positioned(
+                bottom: -40.h,
+                right: 80.w,
+                child: Container(
+                  width: 100.w,
+                  height: 100.w,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _accentInfo.withOpacity(0.07)),
+                ),
+              ),
+              child,
+            ],
+          ),
+        ),
+      );
+    }
+
+    return bannerContent(
+      child: widget.isMobile
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [_headerIcon(), SizedBox(width: 12.w), Expanded(child: _headerText())]),
+        SizedBox(height: 12.h),
+        Row(children: [
+          Expanded(child: _btn("Create Exam", icon: Icons.add, onTap: _showCreateExamDialog)),
+          SizedBox(width: 8.w),
+          Expanded(child: _btn("Settings", icon: Icons.settings, onTap: _showGradingSettings, secondary: true)),
+        ]),
+      ])
+          : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(children: [_headerIcon(), SizedBox(width: 16.w), _headerText(desktop: true)]),
+        Row(children: [
+          _btn("Settings", icon: Icons.settings, onTap: _showGradingSettings, secondary: true),
+          SizedBox(width: 12.w),
+          _btn("Create Exam", icon: Icons.add, onTap: _showCreateExamDialog),
+        ]),
       ]),
-    ])
-        : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Row(children: [_headerIcon(), SizedBox(width: 16.w), _headerText(desktop: true)]),
-      Row(children: [
-        _btn("Settings", icon: Icons.settings, onTap: _showGradingSettings, secondary: true),
-        SizedBox(width: 12.w),
-        _btn("Create Exam", icon: Icons.add, onTap: _showCreateExamDialog),
-      ]),
-    ]);
+    );
   }
 
   Widget _headerIcon() => Container(
-    padding: EdgeInsets.all(widget.isMobile ? 10.w : 12.w),
-    decoration: BoxDecoration(gradient: LinearGradient(colors: [_examPrimary, _examLight]), borderRadius: BorderRadius.circular(12.r)),
+    padding: EdgeInsets.all(widget.isMobile ? 11.w : 13.w),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [_examPrimary, _examLight],
+      ),
+      borderRadius: BorderRadius.circular(14.r),
+      boxShadow: [
+        BoxShadow(
+            color: _examPrimary.withOpacity(0.40),
+            blurRadius: 16,
+            offset: const Offset(0, 6)),
+      ],
+    ),
     child: Icon(Icons.assignment, color: Colors.white, size: widget.isMobile ? 24.sp : 28.sp),
   ).animate(onPlay: (controller) => controller.repeat(reverse: true))
       .shimmer(duration: 2.seconds, color: Colors.white.withOpacity(0.3));
 
   Widget _headerText({bool desktop = false}) => desktop
       ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text("Exam & Results Management", style: TextStyle(color: _textPrimary, fontSize: 28.sp, fontWeight: FontWeight.w800)),
+    ShaderMask(
+      shaderCallback: (bounds) => LinearGradient(
+        colors: [_textPrimary, _examLight],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(bounds),
+      child: Text("Exam & Results Management",
+          style: TextStyle(color: Colors.white, fontSize: 28.sp, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+    ),
+    SizedBox(height: 4.h),
     Text("hybrid grading system", style: TextStyle(color: _textSecondary, fontSize: 14.sp)),
   ])
       : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -235,17 +309,29 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
 
   Widget _buildTabNavigation() {
     return Container(
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: _border)),
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.20),
+              blurRadius: 16,
+              offset: const Offset(0, 4)),
+        ],
+      ),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
           gradient: LinearGradient(colors: [_examPrimary, _examLight]),
-          borderRadius: BorderRadius.circular(8.r),
+          borderRadius: BorderRadius.circular(10.r),
           boxShadow: [BoxShadow(color: _examPrimary.withOpacity(0.4), blurRadius: 12, offset: Offset(0, 4))],
         ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
         labelColor: Colors.white, unselectedLabelColor: _textSecondary,
-        labelStyle: TextStyle(fontSize: widget.isMobile ? 11.sp : 13.sp, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(fontSize: widget.isMobile ? 11.sp : 13.sp, fontWeight: FontWeight.w700),
         unselectedLabelStyle: TextStyle(fontSize: widget.isMobile ? 11.sp : 13.sp, fontWeight: FontWeight.w500),
         isScrollable: widget.isMobile,
         tabs: const [
@@ -258,7 +344,6 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
       ),
     ).animate().fadeIn(duration: 500.ms).slideY(begin: -20, end: 0, duration: 600.ms, curve: Curves.easeOutCubic);
   }
-
   // ═══════════════════════════════════════════════════════════
   //  TAB 1: EXAMS
   // ═══════════════════════════════════════════════════════════
@@ -268,7 +353,14 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
   Widget _buildExamFilters() {
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: _border)),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 14, offset: const Offset(0, 4)),
+        ],
+      ),
       child: widget.isMobile
           ? Column(children: [_buildClassDropdown(), SizedBox(height: 12.h), _buildSearchField()])
           : Row(children: [
@@ -309,37 +401,62 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
     final isPublished = d['isPublished'] == true;
     final statusColor = status == 'published' ? _accentSuccess : status == 'ongoing' ? _accentWarning : _textMuted;
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 12.h), padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(12.r),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12.h),
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(color: status == 'published' ? _accentSuccess.withOpacity(0.3) : _border),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 12, offset: Offset(0, 4))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(padding: EdgeInsets.all(10.w), decoration: BoxDecoration(color: _examPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(10.r)),
-              child: Icon(_examIcon(d['type']), color: _examPrimary, size: 24.sp)),
-          SizedBox(width: 12.w),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(d['name'] ?? 'Unnamed', style: TextStyle(color: _textPrimary, fontSize: 16.sp, fontWeight: FontWeight.w700)),
-            Text("${d['type']} • Max ${d['maxMarks']} marks", style: TextStyle(color: _textSecondary, fontSize: 13.sp)),
-          ])),
-          _statusChip(status, statusColor),
-        ]),
-        SizedBox(height: 12.h),
-        Row(children: [
-          _miniStat(Icons.calendar_today, _fmtDate(d['examDate'])),
-          SizedBox(width: 16.w), _miniStat(Icons.access_time, "${d['duration'] ?? 0} min"),
-          SizedBox(width: 16.w), _miniStat(Icons.grade, "Max: ${d['maxMarks'] ?? 100}"),
-        ]),
-        SizedBox(height: 12.h),
-        _buildCombosList(exam.id),
-        SizedBox(height: 12.h),
-        Row(children: [
-          Expanded(child: _btn("+ Add Class/Subject", icon: Icons.add_circle_outline, onTap: () => _showAddClassSubjectDialog(exam), secondary: true)),
-          SizedBox(width: 8.w),
-          Expanded(child: _btn(isPublished ? "Published" : "Publish", icon: isPublished ? Icons.check_circle : Icons.publish, onTap: isPublished ? null : () => _publishExam(exam))),
-        ]),
-      ]),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.20), blurRadius: 16, offset: const Offset(0, 6))],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -20.h, right: -10.w,
+              child: Container(width: 80.w, height: 80.w,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _examPrimary.withOpacity(0.08))),
+            ),
+            Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    padding: EdgeInsets.all(11.w),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_examPrimary, _examLight]),
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [BoxShadow(color: _examPrimary.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+                    ),
+                    child: Icon(_examIcon(d['type']), color: Colors.white, size: 22.sp),
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(d['name'] ?? 'Unnamed', style: TextStyle(color: _textPrimary, fontSize: 16.sp, fontWeight: FontWeight.w700)),
+                    Text("${d['type']} • Max ${d['maxMarks']} marks", style: TextStyle(color: _textSecondary, fontSize: 13.sp)),
+                  ])),
+                  _statusChip(status, statusColor),
+                ]),
+                SizedBox(height: 12.h),
+                Row(children: [
+                  _miniStat(Icons.calendar_today, _fmtDate(d['examDate'])),
+                  SizedBox(width: 16.w), _miniStat(Icons.access_time, "${d['duration'] ?? 0} min"),
+                  SizedBox(width: 16.w), _miniStat(Icons.grade, "Max: ${d['maxMarks'] ?? 100}"),
+                ]),
+                SizedBox(height: 12.h),
+                _buildCombosList(exam.id),
+                SizedBox(height: 12.h),
+                Row(children: [
+                  Expanded(child: _btn("+ Add Class/Subject", icon: Icons.add_circle_outline, onTap: () => _showAddClassSubjectDialog(exam), secondary: true)),
+                  SizedBox(width: 8.w),
+                  Expanded(child: _btn(isPublished ? "Published" : "Publish", icon: isPublished ? Icons.check_circle : Icons.publish, onTap: isPublished ? null : () => _publishExam(exam))),
+                ]),
+              ]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -389,13 +506,32 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
 
   Widget _buildExamsTable(List<DocumentSnapshot> exams) {
     return Container(
-      decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(12.r), border: Border.all(color: _border)),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _border),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 16, offset: const Offset(0, 5))],
+      ),
       child: Column(children: [
-        Container(padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h), decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.vertical(top: Radius.circular(12.r))),
-            child: Row(children: [Expanded(flex: 2, child: Text("Exam Name", style: _thStyle())), Expanded(child: Text("Type", style: _thStyle())), Expanded(child: Text("Date", style: _thStyle())), Expanded(child: Text("Classes", style: _thStyle())), Expanded(child: Text("Status", style: _thStyle())), SizedBox(width: 120.w)])),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(14.r)),
+            border: Border(bottom: BorderSide(color: _border)),
+          ),
+          child: Row(children: [
+            Expanded(flex: 2, child: Text("Exam Name", style: _thStyle())),
+            Expanded(child: Text("Type", style: _thStyle())),
+            Expanded(child: Text("Date", style: _thStyle())),
+            Expanded(child: Text("Classes", style: _thStyle())),
+            Expanded(child: Text("Status", style: _thStyle())),
+            SizedBox(width: 120.w),
+          ]),
+        ),
         Expanded(child: ListView.separated(
           itemCount: exams.length,
-          separatorBuilder: (_, __) => Divider(color: _border, height: 1),
+          separatorBuilder: (_, __) => Divider(color: _border, height: 1, indent: 16.w, endIndent: 16.w),
           itemBuilder: (_, i) => _examTableRow(exams[i])
               .animate(delay: (i * 60).ms)
               .fadeIn(duration: 300.ms)
@@ -412,9 +548,20 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
     return Container(padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
       child: Row(children: [
         Expanded(flex: 2, child: Row(children: [
-          Container(padding: EdgeInsets.all(8.w), decoration: BoxDecoration(color: _examPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(8.r)), child: Icon(_examIcon(d['type']), color: _examPrimary, size: 18.sp)),
+          Container(
+            padding: EdgeInsets.all(9.w),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_examPrimary, _examLight]),
+              borderRadius: BorderRadius.circular(10.r),
+              boxShadow: [BoxShadow(color: _examPrimary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            child: Icon(_examIcon(d['type']), color: Colors.white, size: 18.sp),
+          ),
           SizedBox(width: 12.w),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(d['name'] ?? '', style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis), Text("Max ${d['maxMarks']} marks", style: TextStyle(color: _textMuted, fontSize: 11.sp))])),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(d['name'] ?? '', style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+            Text("Max ${d['maxMarks']} marks", style: TextStyle(color: _textMuted, fontSize: 11.sp)),
+          ])),
         ])),
         Expanded(child: Text(d['type'] ?? '', style: TextStyle(color: _textSecondary, fontSize: 13.sp))),
         Expanded(child: Text(_fmtDate(d['examDate']), style: TextStyle(color: _textSecondary, fontSize: 13.sp))),
@@ -997,10 +1144,27 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
         final seen = <String>{}; final exams = (snap.data?.docs ?? []).where((e) => seen.add(e.id)).toList();
         final ids = exams.map((e) => e.id).toSet(); final safe = ids.contains(_meExam) ? _meExam : null;
         if (safe != _meExam) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) setState(() { _meExam = null; _meClass = null; }); });
-        return Container(padding: EdgeInsets.symmetric(horizontal: 12.w), decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: _border)),
-            child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: safe, isExpanded: true, dropdownColor: _bgElevated, hint: Text("Select exam", style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: 14.w),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: safe != null ? _examPrimary.withOpacity(0.4) : _border),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 3))],
+          ),
+          child: Row(children: [
+            Icon(Icons.assignment_outlined, color: safe != null ? _examPrimary : _textMuted, size: 18.sp),
+            SizedBox(width: 10.w),
+            Expanded(
+              child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+                value: safe, isExpanded: true, dropdownColor: _bgElevated,
+                hint: Text("Select exam", style: TextStyle(color: _textMuted, fontSize: 14.sp)),
                 items: exams.map((e) { final d = e.data() as Map<String, dynamic>; return DropdownMenuItem(value: e.id, child: Text("${d['name'] ?? 'Unnamed'} (${d['type'] ?? '--'})", style: TextStyle(color: _textPrimary, fontSize: 14.sp))); }).toList(),
-                onChanged: (val) => setState(() { _meExam = val; _meClass = null; }))));
+                onChanged: (val) => setState(() { _meExam = val; _meClass = null; }),
+              )),
+            ),
+          ]),
+        );
       },
     );
   }
@@ -1009,9 +1173,34 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
     return StreamBuilder<QuerySnapshot>(
       stream: _examsRef.doc(examId).collection('classSubjects').snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData || snap.data!.docs.isEmpty) return Container(padding: EdgeInsets.all(12.w), decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(8.r)), child: Text("No classes in this exam. Add from Exams tab.", style: TextStyle(color: _textMuted, fontSize: 13.sp)));
+        if (!snap.hasData || snap.data!.docs.isEmpty) return Container(
+          padding: EdgeInsets.all(14.w),
+          decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: _border)),
+          child: Row(children: [Icon(Icons.info_outline, color: _textMuted, size: 16.sp), SizedBox(width: 8.w), Expanded(child: Text("No classes in this exam. Add from Exams tab.", style: TextStyle(color: _textMuted, fontSize: 13.sp)))]),
+        );
         final classes = snap.data!.docs.map((d) => ((d.data() as Map<String, dynamic>)['className'] ?? '').toString()).toSet().toList()..sort();
-        return Wrap(spacing: 8.w, runSpacing: 8.h, children: classes.map((cls) { final isSel = _meClass == cls; return GestureDetector(onTap: () => setState(() => _meClass = cls), child: AnimatedContainer(duration: Duration(milliseconds: 180), padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h), decoration: BoxDecoration(color: isSel ? _examPrimary : _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: isSel ? _examPrimary : _border, width: isSel ? 2 : 1), boxShadow: isSel ? [BoxShadow(color: _examPrimary.withOpacity(0.4), blurRadius: 12, offset: Offset(0, 4))] : null), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.class_, color: isSel ? Colors.white : _textSecondary, size: 14.sp), SizedBox(width: 6.w), Text("Class $cls", style: TextStyle(color: isSel ? Colors.white : _textPrimary, fontSize: 13.sp, fontWeight: FontWeight.w600))]))); }).toList());
+        return Wrap(spacing: 8.w, runSpacing: 8.h, children: classes.map((cls) {
+          final isSel = _meClass == cls;
+          return GestureDetector(
+            onTap: () => setState(() => _meClass = cls),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              decoration: BoxDecoration(
+                gradient: isSel ? LinearGradient(colors: [_examPrimary, _examLight]) : null,
+                color: isSel ? null : _bgElevated,
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: isSel ? _examPrimary : _border, width: isSel ? 2 : 1),
+                boxShadow: isSel ? [BoxShadow(color: _examPrimary.withOpacity(0.4), blurRadius: 14, offset: const Offset(0, 5))] : null,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.class_, color: isSel ? Colors.white : _textSecondary, size: 14.sp),
+                SizedBox(width: 6.w),
+                Text("Class $cls", style: TextStyle(color: isSel ? Colors.white : _textPrimary, fontSize: 13.sp, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          );
+        }).toList());
       },
     );
   }
@@ -1064,41 +1253,52 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
         for (var r in results) { final rd = r.data() as Map<String, dynamic>; bySubject[(rd['subject'] ?? '').toString()] = rd; }
 
         return Container(
-          margin: EdgeInsets.only(bottom: 10.h),
-          decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(16.r), border: Border.all(color: barColor.withOpacity(0.22)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: Offset(0, 3))]),
-          child: ClipRRect(borderRadius: BorderRadius.circular(16.r), child: Column(children: [
-            IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Container(width: 5.w, decoration: BoxDecoration(gradient: LinearGradient(colors: isComplete ? [_accentSuccess, Color(0xFF16A34A)] : hasAny ? [_examPrimary, _examLight] : [_border, _border], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
-              Expanded(child: Padding(padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                  Stack(children: [
-                    Container(width: 48.w, height: 48.w, decoration: BoxDecoration(gradient: LinearGradient(colors: isComplete ? [_accentSuccess, Color(0xFF16A34A)] : [_examPrimary, _examLight], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(13.r)), child: Center(child: Text((data['name'] ?? '?')[0].toUpperCase(), style: TextStyle(color: Colors.white, fontSize: 19.sp, fontWeight: FontWeight.w800)))),
-                    Positioned(bottom: -1, right: -1, child: Container(padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h), decoration: BoxDecoration(color: _bgDark, borderRadius: BorderRadius.circular(5.r), border: Border.all(color: barColor.withOpacity(0.5))), child: Text("#${data['rollNumber'] ?? '?'}", style: TextStyle(color: barColor, fontSize: 8.sp, fontWeight: FontWeight.w800)))),
+          margin: EdgeInsets.only(bottom: 12.h),
+          decoration: BoxDecoration(color: _bgCard, borderRadius: BorderRadius.circular(18.r), border: Border.all(color: barColor.withOpacity(0.25)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.22), blurRadius: 16, offset: const Offset(0, 6))]),
+          child: ClipRRect(borderRadius: BorderRadius.circular(18.r), child: Stack(children: [
+            Positioned(top: -20.h, right: -10.w, child: Container(width: 70.w, height: 70.w, decoration: BoxDecoration(shape: BoxShape.circle, color: barColor.withOpacity(0.07)))),
+            Column(children: [
+              IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Container(width: 5.w, decoration: BoxDecoration(gradient: LinearGradient(colors: isComplete ? [_accentSuccess, const Color(0xFF16A34A)] : hasAny ? [_examPrimary, _examLight] : [_border, _border], begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+                Expanded(child: Padding(padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    Stack(children: [
+                      Container(
+                        width: 48.w, height: 48.w,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: isComplete ? [_accentSuccess, const Color(0xFF16A34A)] : [_examPrimary, _examLight], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                          borderRadius: BorderRadius.circular(14.r),
+                          boxShadow: [BoxShadow(color: barColor.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 5))],
+                        ),
+                        child: Center(child: Text((data['name'] ?? '?')[0].toUpperCase(), style: TextStyle(color: Colors.white, fontSize: 19.sp, fontWeight: FontWeight.w800))),
+                      ),
+                      Positioned(bottom: -1, right: -1, child: Container(padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h), decoration: BoxDecoration(color: _bgDark, borderRadius: BorderRadius.circular(5.r), border: Border.all(color: barColor.withOpacity(0.5))), child: Text("#${data['rollNumber'] ?? '?'}", style: TextStyle(color: barColor, fontSize: 8.sp, fontWeight: FontWeight.w800)))),
+                    ]),
+                    SizedBox(width: 12.w),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [Expanded(child: Text(data['name'] ?? 'Unknown', style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)), if (isComplete) Container(padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h), decoration: BoxDecoration(color: _accentSuccess.withOpacity(0.12), borderRadius: BorderRadius.circular(20.r)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.verified_rounded, color: _accentSuccess, size: 10.sp), SizedBox(width: 3.w), Text("Complete", style: TextStyle(color: _accentSuccess, fontSize: 9.sp, fontWeight: FontWeight.w700))]))]),
+                      SizedBox(height: 3.h), Text("$entered/$total subjects entered", style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+                    ])),
+                    if (hasAny) ...[SizedBox(width: 8.w), Container(padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h), decoration: BoxDecoration(color: gc.withOpacity(0.10), borderRadius: BorderRadius.circular(10.r), border: Border.all(color: gc.withOpacity(0.3))), child: Column(children: [Text(grade, style: TextStyle(color: gc, fontSize: 16.sp, fontWeight: FontWeight.w900)), Text("${avg.toStringAsFixed(0)}%", style: TextStyle(color: gc.withOpacity(0.75), fontSize: 8.sp, fontWeight: FontWeight.w600))]))],
                   ]),
-                  SizedBox(width: 12.w),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [Expanded(child: Text(data['name'] ?? 'Unknown', style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis)), if (isComplete) Container(padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h), decoration: BoxDecoration(color: _accentSuccess.withOpacity(0.12), borderRadius: BorderRadius.circular(20.r)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.verified_rounded, color: _accentSuccess, size: 10.sp), SizedBox(width: 3.w), Text("Complete", style: TextStyle(color: _accentSuccess, fontSize: 9.sp, fontWeight: FontWeight.w700))]))]),
-                    SizedBox(height: 3.h), Text("$entered/$total subjects entered", style: TextStyle(color: _textMuted, fontSize: 10.sp)),
-                  ])),
-                  if (hasAny) ...[SizedBox(width: 8.w), Container(padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h), decoration: BoxDecoration(color: gc.withOpacity(0.10), borderRadius: BorderRadius.circular(10.r), border: Border.all(color: gc.withOpacity(0.3))), child: Column(children: [Text(grade, style: TextStyle(color: gc, fontSize: 16.sp, fontWeight: FontWeight.w900)), Text("${avg.toStringAsFixed(0)}%", style: TextStyle(color: gc.withOpacity(0.75), fontSize: 8.sp, fontWeight: FontWeight.w600))]))],
-                ]),
-                if (subjectCombos.isNotEmpty) ...[
-                  SizedBox(height: 10.h),
-                  SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: subjectCombos.map((c) { final sd = c.data() as Map<String, dynamic>; final subject = (sd['subject'] ?? '').toString(); final maxM = ((sd['maxMarks'] ?? 100) as num).toInt(); final res = bySubject[subject]; final obt = res != null ? ((res['marksObtained'] ?? 0) as num).toInt() : null; final pct = obt != null ? obt / maxM * 100 : 0.0; final pillColor = obt != null ? (pct >= 80 ? _accentSuccess : pct >= 50 ? _accentWarning : _accentDanger) : _border; return Container(margin: EdgeInsets.only(right: 6.w), padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h), decoration: BoxDecoration(color: obt != null ? pillColor.withOpacity(0.08) : _bgElevated, borderRadius: BorderRadius.circular(8.r), border: Border.all(color: obt != null ? pillColor.withOpacity(0.3) : _border)), child: Column(children: [Text(subject.length > 5 ? subject.substring(0, 5) : subject, style: TextStyle(color: _textMuted, fontSize: 8.sp, fontWeight: FontWeight.w600)), SizedBox(height: 2.h), Text(obt != null ? "$obt/$maxM" : "--/$maxM", style: TextStyle(color: obt != null ? pillColor : _textMuted, fontSize: 10.sp, fontWeight: FontWeight.w800))])); }).toList())),
-                ],
-              ]))),
-            ])),
-            SizedBox(height: 3.h, child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: progress),
-              duration: Duration(milliseconds: 800),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) => LinearProgressIndicator(value: value, backgroundColor: _bgElevated, valueColor: AlwaysStoppedAnimation<Color>(barColor)),
-            )),
-            Padding(padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 12.h), child: Row(children: [
-              Expanded(child: GestureDetector(onTap: () => _showStudentMarksSheet(student, subjectCombos, examId, classId), child: Container(padding: EdgeInsets.symmetric(vertical: 9.h), decoration: BoxDecoration(gradient: LinearGradient(colors: [_examPrimary, _examLight]), borderRadius: BorderRadius.circular(10.r)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(isComplete ? Icons.edit_rounded : Icons.add_rounded, color: Colors.white, size: 15.sp), SizedBox(width: 6.w), Text(isComplete ? "Edit Marks" : "Enter Marks", style: TextStyle(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.w700))])))),
-              SizedBox(width: 8.w),
-              GestureDetector(onTap: isComplete ? () => _showDMC(student, results, subjectCombos, examId, classId) : null, child: Container(padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 9.h), decoration: BoxDecoration(color: isComplete ? _accentSuccess.withOpacity(0.10) : _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: isComplete ? _accentSuccess.withOpacity(0.4) : _border)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.workspace_premium_rounded, color: isComplete ? _accentSuccess : _textMuted, size: 15.sp), SizedBox(width: 5.w), Text("DMC", style: TextStyle(color: isComplete ? _accentSuccess : _textMuted, fontSize: 12.sp, fontWeight: FontWeight.w700))]))),
-            ])),
+                  if (subjectCombos.isNotEmpty) ...[
+                    SizedBox(height: 10.h),
+                    SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: subjectCombos.map((c) { final sd = c.data() as Map<String, dynamic>; final subject = (sd['subject'] ?? '').toString(); final maxM = ((sd['maxMarks'] ?? 100) as num).toInt(); final res = bySubject[subject]; final obt = res != null ? ((res['marksObtained'] ?? 0) as num).toInt() : null; final pct = obt != null ? obt / maxM * 100 : 0.0; final pillColor = obt != null ? (pct >= 80 ? _accentSuccess : pct >= 50 ? _accentWarning : _accentDanger) : _border; return Container(margin: EdgeInsets.only(right: 6.w), padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h), decoration: BoxDecoration(color: obt != null ? pillColor.withOpacity(0.08) : _bgElevated, borderRadius: BorderRadius.circular(8.r), border: Border.all(color: obt != null ? pillColor.withOpacity(0.3) : _border)), child: Column(children: [Text(subject.length > 5 ? subject.substring(0, 5) : subject, style: TextStyle(color: _textMuted, fontSize: 8.sp, fontWeight: FontWeight.w600)), SizedBox(height: 2.h), Text(obt != null ? "$obt/$maxM" : "--/$maxM", style: TextStyle(color: obt != null ? pillColor : _textMuted, fontSize: 10.sp, fontWeight: FontWeight.w800))])); }).toList())),
+                  ],
+                ]))),
+              ])),
+              SizedBox(height: 3.h, child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: progress),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => LinearProgressIndicator(value: value, backgroundColor: _bgElevated, valueColor: AlwaysStoppedAnimation<Color>(barColor)),
+              )),
+              Padding(padding: EdgeInsets.fromLTRB(14.w, 10.h, 14.w, 12.h), child: Row(children: [
+                Expanded(child: GestureDetector(onTap: () => _showStudentMarksSheet(student, subjectCombos, examId, classId), child: Container(padding: EdgeInsets.symmetric(vertical: 9.h), decoration: BoxDecoration(gradient: LinearGradient(colors: [_examPrimary, _examLight]), borderRadius: BorderRadius.circular(10.r), boxShadow: [BoxShadow(color: _examPrimary.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 4))]), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(isComplete ? Icons.edit_rounded : Icons.add_rounded, color: Colors.white, size: 15.sp), SizedBox(width: 6.w), Text(isComplete ? "Edit Marks" : "Enter Marks", style: TextStyle(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.w700))])))),
+                SizedBox(width: 8.w),
+                GestureDetector(onTap: isComplete ? () => _showDMC(student, results, subjectCombos, examId, classId) : null, child: Container(padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 9.h), decoration: BoxDecoration(color: isComplete ? _accentSuccess.withOpacity(0.10) : _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: isComplete ? _accentSuccess.withOpacity(0.4) : _border)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.workspace_premium_rounded, color: isComplete ? _accentSuccess : _textMuted, size: 15.sp), SizedBox(width: 5.w), Text("DMC", style: TextStyle(color: isComplete ? _accentSuccess : _textMuted, fontSize: 12.sp, fontWeight: FontWeight.w700))]))),
+              ])),
+            ]),
           ])),
         );
       },
