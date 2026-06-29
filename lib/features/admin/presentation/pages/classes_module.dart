@@ -1,10 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// classes_module.dart
-// lib/features/admin/presentation/pages/classes_module.dart
-//
-// Full Classes Management Module for EduManage Pro
-// Integrates seamlessly with AdminDashboardPage architecture.
-//
 // Firestore Path:
 //   schools/{schoolId}/classes/{classId}
 //
