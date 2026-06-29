@@ -187,41 +187,133 @@ class _ClassesModuleState extends State<ClassesModule>
 
   // ── Header ──────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
-    return widget.isMobile
-        ? Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _headerText(),
-        SizedBox(height: 14.h),
-        SizedBox(
-          width: double.infinity,
-          child: _primaryButton('+ Add Class', _openAddClassDialog),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20.r),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(widget.isMobile ? 18.w : 24.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_primary.withOpacity(0.15), _bgCard],
+          ),
+          border: Border.all(color: _primary.withOpacity(0.22)),
         ),
-      ],
-    )
-        : Row(
-      children: [
-        Expanded(child: _headerText()),
-        _viewToggle(),
-        SizedBox(width: 12.w),
-        _sortButton(),
-        SizedBox(width: 12.w),
-        _primaryButton('+ Add Class', _openAddClassDialog),
-      ],
+        child: Stack(
+          children: [
+            // Decorative circles (same as student module)
+            Positioned(
+              top: -28.h, right: -16.w,
+              child: Container(
+                width: 120.w, height: 120.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _primary.withOpacity(0.09),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: -36.h, right: 60.w,
+              child: Container(
+                width: 90.w, height: 90.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _accentBlue.withOpacity(0.06),
+                ),
+              ),
+            ),
+
+            widget.isMobile
+                ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  _headerIconBadge(),
+                  SizedBox(width: 14.w),
+                  Expanded(child: _headerTitleBlock()),
+                ]),
+                SizedBox(height: 16.h),
+                SizedBox(
+                  width: double.infinity,
+                  child: _primaryButton('+ Add Class', _openAddClassDialog),
+                ),
+              ],
+            )
+                : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _headerIconBadge(),
+                SizedBox(width: 18.w),
+                Expanded(child: _headerTitleBlock()),
+                // Live stats
+                StreamBuilder<QuerySnapshot>(
+                  stream: _classStream,
+                  builder: (context, snap) {
+                    final total = snap.data?.docs.length ?? 0;
+                    return Row(children: [
+                      _headerStatPill(
+                          Icons.class_outlined, '$total', 'Classes', _primary),
+                      SizedBox(width: 8.w),
+                    ]);
+                  },
+                ),
+                SizedBox(width: 12.w),
+                _viewToggle(),
+                SizedBox(width: 10.w),
+                _sortButton(),
+                SizedBox(width: 10.w),
+                _primaryButton('+ Add Class', _openAddClassDialog),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _headerText() {
+  Widget _headerIconBadge() {
+    return Container(
+      padding: EdgeInsets.all(widget.isMobile ? 12.w : 14.w),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [_primary, _primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withOpacity(0.38),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Icon(Icons.class_rounded,
+          color: Colors.white,
+          size: widget.isMobile ? 24.sp : 28.sp),
+    );
+  }
+
+  Widget _headerTitleBlock() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Class Management',
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: widget.isMobile ? 22.sp : 26.sp,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFFEEF1F8), _primaryLight],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ).createShader(bounds),
+          child: Text(
+            'Class Management',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: widget.isMobile ? 22.sp : 26.sp,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
         SizedBox(height: 4.h),
@@ -233,31 +325,78 @@ class _ClassesModuleState extends State<ClassesModule>
     );
   }
 
+  Widget _headerStatPill(
+      IconData icon, String value, String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 16.sp),
+        SizedBox(width: 8.w),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.w800)),
+          Text(label,
+              style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+        ]),
+      ]),
+    );
+  }
+
+
   // ── Grade tabs ──────────────────────────────────────────────────────────────
   Widget _buildGradeTabs() {
     return Container(
-      height: 40.h,
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: _bgCard,
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TabBar(
         controller: _tabController,
         isScrollable: true,
+        physics: const BouncingScrollPhysics(),
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
-          gradient: const LinearGradient(colors: [_primary, _primaryLight]),
-          borderRadius: BorderRadius.circular(8.r),
+          gradient: const LinearGradient(
+            colors: [_primary, _primaryLight],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(9.r),
+          boxShadow: [
+            BoxShadow(
+              color: _primary.withOpacity(0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         labelColor: Colors.white,
         unselectedLabelColor: _textSecondary,
-        labelStyle: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500),
+        labelStyle:
+        TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w700),
+        unselectedLabelStyle:
+        TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500),
         tabs: _grades
             .map((g) => Tab(
-          height: 34.h,
+          height: 36.h,
           text: g == 'All' ? 'All Grades' : 'Grade $g',
         ))
             .toList(),
@@ -267,37 +406,50 @@ class _ClassesModuleState extends State<ClassesModule>
 
   // ── Search bar ──────────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 44.h,
-            decoration: BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: _border),
-            ),
-            child: TextField(
-              onChanged: (v) => setState(() => _searchQuery = v),
-              style: TextStyle(color: _textPrimary, fontSize: 13.sp),
-              decoration: InputDecoration(
-                hintText: 'Search by class name, room, teacher…',
-                hintStyle: TextStyle(color: _textMuted, fontSize: 13.sp),
-                prefixIcon: Icon(Icons.search, color: _textMuted, size: 18.sp),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 12.h),
+    return Row(children: [
+      Expanded(
+        child: Container(
+          height: 46.h,
+          decoration: BoxDecoration(
+            color: _bgCard,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: _border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
+            ],
+          ),
+          child: TextField(
+            onChanged: (v) => setState(() => _searchQuery = v),
+            style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+            decoration: InputDecoration(
+              hintText: 'Search class name, room, teacher…',
+              hintStyle: TextStyle(color: _textMuted, fontSize: 13.sp),
+              prefixIcon: Icon(Icons.search_rounded,
+                  color: _textMuted, size: 20.sp),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? GestureDetector(
+                onTap: () => setState(() => _searchQuery = ''),
+                child: Icon(Icons.clear_rounded,
+                    color: _textMuted, size: 18.sp),
+              )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 13.h),
             ),
           ),
         ),
+      ),
+      SizedBox(width: 10.w),
+      _shiftFilterButton(),
+      if (!widget.isMobile) ...[
         SizedBox(width: 10.w),
-        _shiftFilterButton(),
-        if (!widget.isMobile) ...[
-          SizedBox(width: 10.w),
-          _viewToggle(),
-        ],
+        _viewToggle(),
       ],
-    );
+    ]);
   }
 
   Widget _shiftFilterButton() {
@@ -620,29 +772,44 @@ class _ClassesModuleState extends State<ClassesModule>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: EdgeInsets.all(24.w),
+            padding: EdgeInsets.all(28.w),
             decoration: BoxDecoration(
-              color: _primary.withOpacity(0.08),
+              gradient: LinearGradient(
+                colors: [
+                  _primary.withOpacity(0.15),
+                  _primaryLight.withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
+              border: Border.all(color: _primary.withOpacity(0.2)),
             ),
-            child: Icon(icon, color: _primary, size: 48.sp),
+            child: Icon(icon, color: _primary, size: 52.sp),
           ),
-          SizedBox(height: 20.h),
-          Text(title,
-              style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700)),
-          SizedBox(height: 6.h),
-          Text(subtitle,
-              style: TextStyle(color: _textSecondary, fontSize: 13.sp),
-              textAlign: TextAlign.center),
-          SizedBox(height: 24.h),
+          SizedBox(height: 22.h),
+          Text(
+            title,
+            style: TextStyle(
+              color: _textPrimary,
+              fontSize: 20.sp,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          Text(
+            subtitle,
+            style: TextStyle(color: _textSecondary, fontSize: 14.sp),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 28.h),
           _primaryButton('+ Add First Class', _openAddClassDialog),
         ],
       ),
     );
   }
+
 
   Widget _errorState(String error) {
     return Center(
@@ -753,15 +920,14 @@ class _ClassCardState extends State<_ClassCard> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.doc.data() as Map<String, dynamic>;
-    final name    = d['name']    as String? ?? '';
-    final grade   = d['grade']   as String? ?? '';
-    final section = d['section'] as String? ?? '';
-    final room    = d['room']    as String? ?? '';
+    final d       = widget.doc.data() as Map<String, dynamic>;
+    final name    = d['name']         as String? ?? '';
+    final grade   = d['grade']        as String? ?? '';
+    final section = d['section']      as String? ?? '';
+    final room    = d['room']         as String? ?? '';
     final teacher = d['classTeacher'] as String? ?? '';
-    final capacity= d['capacity'] as int?    ?? 0;
-    final shift   = d['shift']   as String? ?? '';
-    final subjects= List<String>.from(d['subjects'] ?? []);
+    final capacity= d['capacity']     as int?    ?? 0;
+    final shift   = d['shift']        as String? ?? '';
     final color   = _gradeColor(grade);
 
     return MouseRegion(
@@ -775,112 +941,113 @@ class _ClassCardState extends State<_ClassCard> {
             color: _bgCard,
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: _hovered ? color.withOpacity(0.5) : _border,
+              color: _hovered ? color.withOpacity(0.55) : _border,
               width: _hovered ? 1.5 : 1,
             ),
             boxShadow: _hovered
                 ? [
               BoxShadow(
-                color: color.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              )
+                color: color.withOpacity(0.20),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
             ]
                 : [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              )
+                color: Colors.black.withOpacity(0.18),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
-          child: Stack(
-            children: [
-              // ── Accent top bar ──────────────────────────────────────────
-              Positioned(
-                top: 0, left: 0, right: 0,
-                child: Container(
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color, color.withOpacity(0.5)],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16.r),
+            child: Stack(
+              children: [
+                // ── Gradient top accent bar ──────────────────────────────
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: Container(
+                    height: 4.h,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color, color.withOpacity(0.4)],
+                      ),
                     ),
-                    borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(16.r)),
                   ),
                 ),
-              ),
 
-              Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 14.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Top row: class badge + actions ─────────────────────
-                    Row(
-                      children: [
-                        // Class badge
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 14.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Top row ─────────────────────────────────────────
+                      Row(children: [
+                        // Grade badge with gradient
                         Container(
-                          width: 52.w,
-                          height: 52.w,
+                          width: 54.w,
+                          height: 54.w,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            gradient: LinearGradient(
+                              colors: [
+                                color.withOpacity(0.18),
+                                color.withOpacity(0.06),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             borderRadius: BorderRadius.circular(14.r),
                             border: Border.all(
-                                color: color.withOpacity(0.25)),
+                                color: color.withOpacity(0.30), width: 1.5),
                           ),
                           child: Center(
                             child: Text(
                               name,
                               style: TextStyle(
                                 color: color,
-                                fontSize: name.length > 3 ? 12.sp : 15.sp,
+                                fontSize: name.length > 3 ? 11.sp : 16.sp,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
                         ),
                         const Spacer(),
-                        // Action buttons
                         _iconBtn(Icons.edit_outlined, _primary, widget.onEdit),
                         SizedBox(width: 6.w),
-                        _iconBtn(Icons.delete_outline, _accentRed, widget.onDelete),
-                      ],
-                    ),
+                        _iconBtn(
+                            Icons.delete_outline, _accentRed, widget.onDelete),
+                      ]),
 
-                    SizedBox(height: 12.h),
+                      SizedBox(height: 12.h),
 
-                    // ── Grade + section ────────────────────────────────────
-                    Row(
-                      children: [
+                      // ── Chips ────────────────────────────────────────────
+                      Wrap(spacing: 6.w, runSpacing: 6.h, children: [
                         _chip('Grade $grade', color),
-                        SizedBox(width: 6.w),
                         if (section.isNotEmpty)
                           _chip('Section $section', _textMuted),
-                        SizedBox(width: 6.w),
                         if (shift.isNotEmpty)
                           _chip(shift, _accentAmber),
+                      ]),
+
+                      SizedBox(height: 10.h),
+
+                      // ── Room & teacher ───────────────────────────────────
+                      if (room.isNotEmpty) _infoRow(Icons.room_outlined, room),
+                      if (teacher.isNotEmpty) ...[
+                        SizedBox(height: 4.h),
+                        _infoRow(Icons.person_outline, teacher),
                       ],
-                    ),
 
-                    SizedBox(height: 10.h),
+                      const Spacer(),
 
-                    // ── Room & teacher ─────────────────────────────────────
-                    if (room.isNotEmpty)
-                      _infoRow(Icons.room_outlined, room),
-                    if (teacher.isNotEmpty) ...[
-                      SizedBox(height: 4.h),
-                      _infoRow(Icons.person_outline, teacher),
+                      // ── Student count + progress ─────────────────────────
+                      _buildStudentCountRow(capacity),
                     ],
-
-                    const Spacer(),
-
-                    // ── Bottom: students count + capacity ──────────────────
-                    _buildStudentCountRow(capacity),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
