@@ -438,69 +438,176 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
   }
 
   Widget _buildExamCard(DocumentSnapshot exam) {
-    final d = exam.data() as Map<String, dynamic>;
+    final d           = exam.data() as Map<String, dynamic>;
     final status      = (d['status'] ?? 'draft').toString();
     final isPublished = d['isPublished'] == true;
-    final statusColor = status == 'published' ? _accentSuccess : status == 'ongoing' ? _accentWarning : _textMuted;
+    final statusColor = status == 'published'
+        ? _accentSuccess
+        : status == 'ongoing'
+        ? _accentWarning
+        : _textMuted;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 12.h),
-        decoration: BoxDecoration(
-          color: _bgCard,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: status == 'published' ? _accentSuccess.withOpacity(0.3) : _border),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.20), blurRadius: 16, offset: const Offset(0, 6))],
+    return Container(
+      margin: EdgeInsets.only(bottom: 14.h),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: isPublished
+              ? _accentSuccess.withOpacity(0.25)
+              : _border,
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -20.h, right: -10.w,
-              child: Container(width: 80.w, height: 80.w,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: _examPrimary.withOpacity(0.08))),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 16, offset: const Offset(0, 4)),
+          if (isPublished)
+            BoxShadow(
+                color: _accentSuccess.withOpacity(0.08),
+                blurRadius: 16),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16.r),
+        child: Column(children: [
+          // ── Accent top bar ──────────────────────────────────────────
+          Container(
+            height: 3.h,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isPublished
+                    ? [_accentSuccess, const Color(0xFF16A34A)]
+                    : status == 'ongoing'
+                    ? [_accentWarning, const Color(0xFFD97706)]
+                    : [_examPrimary, _examLight],
+              ),
             ),
-            Padding(
-              padding: EdgeInsets.all(16.w),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(
-                    padding: EdgeInsets.all(11.w),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_examPrimary, _examLight]),
-                      borderRadius: BorderRadius.circular(12.r),
-                      boxShadow: [BoxShadow(color: _examPrimary.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+
+          Padding(
+            padding: EdgeInsets.all(18.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header row ────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12.w),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _examPrimary.withOpacity(0.15),
+                            _examLight.withOpacity(0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                            color: _examPrimary.withOpacity(0.2)),
+                      ),
+                      child: Icon(_examIcon(d['type']),
+                          color: _examPrimary, size: 22.sp),
                     ),
-                    child: Icon(_examIcon(d['type']), color: Colors.white, size: 22.sp),
+                    SizedBox(width: 14.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(d['name'] ?? 'Unnamed',
+                              style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(height: 4.h),
+                          Row(children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 8.w, vertical: 3.h),
+                              decoration: BoxDecoration(
+                                color: _examPrimary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Text(d['type'] ?? '',
+                                  style: TextStyle(
+                                      color: _examPrimary,
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                            SizedBox(width: 8.w),
+                            Text('Max ${d['maxMarks']} marks',
+                                style: TextStyle(
+                                    color: _textMuted, fontSize: 12.sp)),
+                          ]),
+                        ],
+                      ),
+                    ),
+                    _statusChip(status, statusColor),
+                  ],
+                ),
+                SizedBox(height: 14.h),
+
+                // ── Meta info row ─────────────────────────────────────
+                Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 14.w, vertical: 10.h),
+                  decoration: BoxDecoration(
+                    color: _bgElevated,
+                    borderRadius: BorderRadius.circular(10.r),
+                    border: Border.all(color: _border),
                   ),
-                  SizedBox(width: 12.w),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(d['name'] ?? 'Unnamed', style: TextStyle(color: _textPrimary, fontSize: 16.sp, fontWeight: FontWeight.w700)),
-                    Text("${d['type']} • Max ${d['maxMarks']} marks", style: TextStyle(color: _textSecondary, fontSize: 13.sp)),
-                  ])),
-                  _statusChip(status, statusColor),
-                ]),
+                  child: Row(children: [
+                    _miniStat(Icons.calendar_today_outlined,
+                        _fmtDate(d['examDate'])),
+                    Container(
+                        margin: EdgeInsets.symmetric(horizontal: 12.w),
+                        width: 1, height: 14.h, color: _border),
+                    _miniStat(Icons.timer_outlined,
+                        '${d['duration'] ?? 0} min'),
+                    Container(
+                        margin: EdgeInsets.symmetric(horizontal: 12.w),
+                        width: 1, height: 14.h, color: _border),
+                    _miniStat(Icons.grade_outlined,
+                        'Pass: ${d['passingMarks'] ?? '--'}'),
+                  ]),
+                ),
                 SizedBox(height: 12.h),
-                Row(children: [
-                  _miniStat(Icons.calendar_today, _fmtDate(d['examDate'])),
-                  SizedBox(width: 16.w), _miniStat(Icons.access_time, "${d['duration'] ?? 0} min"),
-                  SizedBox(width: 16.w), _miniStat(Icons.grade, "Max: ${d['maxMarks'] ?? 100}"),
-                ]),
-                SizedBox(height: 12.h),
+
+                // ── Combos ────────────────────────────────────────────
                 _buildCombosList(exam.id),
-                SizedBox(height: 12.h),
+                SizedBox(height: 14.h),
+
+                // ── Actions ───────────────────────────────────────────
                 Row(children: [
-                  Expanded(child: _btn("+ Add Class/Subject", icon: Icons.add_circle_outline, onTap: () => _showAddClassSubjectDialog(exam), secondary: true)),
-                  SizedBox(width: 8.w),
-                  Expanded(child: _btn(isPublished ? "Published" : "Publish", icon: isPublished ? Icons.check_circle : Icons.publish, onTap: isPublished ? null : () => _publishExam(exam))),
+                  Expanded(
+                    child: _btn(
+                      '+ Add Class/Subject',
+                      icon: Icons.add_circle_outline_rounded,
+                      onTap: () => _showAddClassSubjectDialog(exam),
+                      secondary: true,
+                    ),
+                  ),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: _btn(
+                      isPublished ? 'Published ✓' : 'Publish',
+                      icon: isPublished
+                          ? Icons.check_circle_rounded
+                          : Icons.publish_rounded,
+                      onTap: isPublished
+                          ? null
+                          : () => _publishExam(exam),
+                    ),
+                  ),
                 ]),
-              ]),
+              ],
             ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }
+
 
   Widget _buildCombosList(String examId) {
     return StreamBuilder<QuerySnapshot>(
@@ -679,13 +786,16 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
                 ),
                 SizedBox(width: 8.w),
                 Text('Loading classes...',
-                    style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+                    style: TextStyle(
+                        color: _textMuted, fontSize: 14.sp)),
               ])
                   : _availableClasses.isEmpty
                   ? Text('No classes — add students first',
-                  style: TextStyle(color: _textMuted, fontSize: 13.sp))
+                  style: TextStyle(
+                      color: _textMuted, fontSize: 13.sp))
                   : Text('Choose class',
-                  style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+                  style: TextStyle(
+                      color: _textMuted, fontSize: 14.sp)),
               items: _availableClasses
                   .map((c) => DropdownMenuItem(
                 value: c,
@@ -700,19 +810,174 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
             ),
           ),
         ),
-
-        else
+        SizedBox(height: 16.h),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text("Select Subject *",
+              style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600)),
+          GestureDetector(
+            onTap: () => ss(() => isAddingNew = !isAddingNew),
+            child: Container(
+              padding:
+              EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: _examPrimary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20.r),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(isAddingNew ? Icons.list : Icons.add,
+                    color: _examPrimary, size: 14.sp),
+                SizedBox(width: 4.w),
+                Text(
+                    isAddingNew ? "Pick existing" : "+ New Subject",
+                    style: TextStyle(
+                        color: _examPrimary,
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+        ]),
+        SizedBox(height: 8.h),
+          if (isAddingNew)
+            Container(
+              decoration: BoxDecoration(
+                color: _bgElevated,
+                borderRadius: BorderRadius.circular(10.r),
+                border: Border.all(color: _examPrimary.withOpacity(0.5)),
+              ),
+              child: Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: newSubCtrl,
+                    style:
+                    TextStyle(color: _textPrimary, fontSize: 14.sp),
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      hintText: "e.g. Mathematics...",
+                      hintStyle: TextStyle(
+                          color: _textMuted, fontSize: 14.sp),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16.w, vertical: 14.h),
+                    ),
+                    onSubmitted: (v) => saveNewSubject(v, ss),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => saveNewSubject(newSubCtrl.text, ss),
+                  child: Container(
+                    margin: EdgeInsets.only(right: 6.w),
+                    padding: EdgeInsets.all(10.w),
+                    decoration: BoxDecoration(
+                      color: _examPrimary,
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Icon(Icons.check,
+                        color: Colors.white, size: 18.sp),
+                  ),
+                ),
+              ]),
+            )
+          else
             StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('subjects').orderBy('name').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .doc(widget.schoolId)
+                  .collection('subjects')
+                  .orderBy('name')
+                  .snapshots(),
               builder: (context, subSnap) {
                 final subjects = subSnap.data?.docs ?? [];
-                if (subjects.isEmpty) return GestureDetector(onTap: () => ss(() => isAddingNew = true), child: Container(width: double.infinity, padding: EdgeInsets.all(16.w), decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: _border)), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.add_circle_outline, color: _examPrimary, size: 20.sp), SizedBox(width: 8.w), Text("No subjects yet — tap to add", style: TextStyle(color: _examPrimary, fontSize: 13.sp))])));
-                return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Wrap(spacing: 8.w, runSpacing: 8.h, children: subjects.map((s) { final sd = s.data() as Map<String, dynamic>; final n = sd['name'] ?? ''; final isSel = localSubject == n; return GestureDetector(onTap: () => ss(() => localSubject = n), onLongPress: () => _confirmDeleteSubject(s, ss), child: AnimatedContainer(duration: Duration(milliseconds: 180), padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h), decoration: BoxDecoration(color: isSel ? _examPrimary : _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: isSel ? _examPrimary : _border, width: isSel ? 2 : 1), boxShadow: isSel ? [BoxShadow(color: _examPrimary.withOpacity(0.4), blurRadius: 12, offset: Offset(0, 4))] : null), child: Text(n, style: TextStyle(color: isSel ? Colors.white : _textPrimary, fontSize: 13.sp, fontWeight: isSel ? FontWeight.w700 : FontWeight.w500)))); }).toList()),
-                  SizedBox(height: 6.h), Text("Long press to delete", style: TextStyle(color: _textMuted, fontSize: 11.sp)),
-                ]);
+                if (subjects.isEmpty) {
+                  return GestureDetector(
+                    onTap: () => ss(() => isAddingNew = true),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: _bgElevated,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: _border),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_circle_outline,
+                              color: _examPrimary, size: 20.sp),
+                          SizedBox(width: 8.w),
+                          Text("No subjects yet — tap to add",
+                              style: TextStyle(
+                                  color: _examPrimary, fontSize: 13.sp)),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8.w,
+                        runSpacing: 8.h,
+                        children: subjects.map((s) {
+                          final sd =
+                          s.data() as Map<String, dynamic>;
+                          final n = sd['name'] ?? '';
+                          final isSel = localSubject == n;
+                          return GestureDetector(
+                            onTap: () => ss(() => localSubject = n),
+                            onLongPress: () =>
+                                _confirmDeleteSubject(s, ss),
+                            child: AnimatedContainer(
+                              duration:
+                              const Duration(milliseconds: 180),
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12.w, vertical: 8.h),
+                              decoration: BoxDecoration(
+                                color: isSel
+                                    ? _examPrimary
+                                    : _bgElevated,
+                                borderRadius:
+                                BorderRadius.circular(10.r),
+                                border: Border.all(
+                                    color: isSel
+                                        ? _examPrimary
+                                        : _border,
+                                    width: isSel ? 2 : 1),
+                                boxShadow: isSel
+                                    ? [
+                                  BoxShadow(
+                                      color: _examPrimary
+                                          .withOpacity(0.4),
+                                      blurRadius: 12,
+                                      offset: Offset(0, 4))
+                                ]
+                                    : null,
+                              ),
+                              child: Text(n,
+                                  style: TextStyle(
+                                      color: isSel
+                                          ? Colors.white
+                                          : _textPrimary,
+                                      fontSize: 13.sp,
+                                      fontWeight: isSel
+                                          ? FontWeight.w700
+                                          : FontWeight.w500)),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 6.h),
+                      Text("Long press to delete",
+                          style: TextStyle(
+                              color: _textMuted, fontSize: 11.sp)),
+                    ]);
               },
             ),
+
           if (localSubject != null) ...[SizedBox(height: 12.h), Container(padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h), decoration: BoxDecoration(color: _accentSuccess.withOpacity(0.1), borderRadius: BorderRadius.circular(8.r), border: Border.all(color: _accentSuccess.withOpacity(0.3))), child: Row(children: [Icon(Icons.check_circle, color: _accentSuccess, size: 16.sp), SizedBox(width: 8.w), Text("Selected: $localSubject", style: TextStyle(color: _accentSuccess, fontSize: 13.sp, fontWeight: FontWeight.w600))]))],
           SizedBox(height: 16.h),
           widget.isMobile ? Column(children: [
