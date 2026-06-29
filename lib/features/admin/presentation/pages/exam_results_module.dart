@@ -110,12 +110,9 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
     'F':  {'min': 0,  'max': 33,  'gpa': 0.0},
   };
 
-  final List<String> _availableClasses = [
-    "1A","1B","1C","2A","2B","2C","3A","3B","3C",
-    "4A","4B","4C","5A","5B","5C","6A","6B","6C",
-    "7A","7B","7C","8A","8B","8C","9A","9B","9C",
-    "10A","10B","10C",
-  ];
+  // ✅ Dynamic — loaded from Firestore (same as student_module.dart)
+  List<String> _availableClasses = [];
+  bool _isLoadingClasses = false;
 
   CollectionReference get _resultsRef => FirebaseFirestore.instance
       .collection('schools').doc(widget.schoolId)
@@ -134,7 +131,52 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _initializeExamSystem();
+    _fetchClasses(); // ✅ Load real classes from Firestore
   }
+
+  Future<void> _fetchClasses() async {
+    if (_isLoadingClasses) return;
+    setState(() => _isLoadingClasses = true);
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('students')
+          .where('status', isEqualTo: 'active')
+          .get();
+
+      final classSet = <String>{};
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final className = data['class']?.toString().trim();
+        if (className != null && className.isNotEmpty) {
+          classSet.add(className);
+        }
+      }
+
+      // Sort: numeric classes first (1A, 2B...), then alphabetic
+      final sorted = classSet.toList()..sort((a, b) {
+        final numA = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 999;
+        final numB = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 999;
+        if (numA != numB) return numA.compareTo(numB);
+        return a.compareTo(b);
+      });
+
+      if (mounted) {
+        setState(() {
+          _availableClasses   = sorted;
+          _isLoadingClasses   = false;
+        });
+      }
+      debugPrint('✅ Exam module: fetched ${sorted.length} classes: $sorted');
+    } catch (e) {
+      debugPrint('❌ Error fetching classes: $e');
+      if (mounted) setState(() => _isLoadingClasses = false);
+    }
+  }
+
+
 
   @override
   void dispose() {
@@ -613,23 +655,53 @@ class _ExamResultsModuleState extends State<ExamResultsModule>
             },
           ),
           Text("Select Class *", style: TextStyle(color: _textSecondary, fontSize: 13.sp, fontWeight: FontWeight.w600)), SizedBox(height: 8.h),
-          Container(padding: EdgeInsets.symmetric(horizontal: 12.w), decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: _border)),
-              child: DropdownButtonHideUnderline(child: DropdownButton<String>(value: localClass, isExpanded: true, dropdownColor: _bgElevated, hint: Text("Choose class", style: TextStyle(color: _textMuted, fontSize: 14.sp)),
-                  items: _availableClasses.map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(color: _textPrimary, fontSize: 14.sp)))).toList(),
-                  onChanged: (val) => ss(() => localClass = val)))),
-          SizedBox(height: 16.h),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text("Select Subject *", style: TextStyle(color: _textSecondary, fontSize: 13.sp, fontWeight: FontWeight.w600)),
-            GestureDetector(onTap: () => ss(() => isAddingNew = !isAddingNew), child: Container(padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h), decoration: BoxDecoration(color: _examPrimary.withOpacity(0.1), borderRadius: BorderRadius.circular(20.r)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(isAddingNew ? Icons.list : Icons.add, color: _examPrimary, size: 14.sp), SizedBox(width: 4.w), Text(isAddingNew ? "Pick existing" : "+ New Subject", style: TextStyle(color: _examPrimary, fontSize: 12.sp, fontWeight: FontWeight.w600))]))),
-          ]),
-          SizedBox(height: 8.h),
-          if (isAddingNew)
-            Container(decoration: BoxDecoration(color: _bgElevated, borderRadius: BorderRadius.circular(10.r), border: Border.all(color: _examPrimary.withOpacity(0.5))),
-                child: Row(children: [
-                  Expanded(child: TextField(controller: newSubCtrl, style: TextStyle(color: _textPrimary, fontSize: 14.sp), textCapitalization: TextCapitalization.words, decoration: InputDecoration(hintText: "e.g. Mathematics...", hintStyle: TextStyle(color: _textMuted, fontSize: 14.sp), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h)), onSubmitted: (v) => saveNewSubject(v, ss))),
-                  GestureDetector(onTap: () => saveNewSubject(newSubCtrl.text, ss), child: Container(margin: EdgeInsets.only(right: 6.w), padding: EdgeInsets.all(10.w), decoration: BoxDecoration(color: _examPrimary, borderRadius: BorderRadius.circular(8.r)), child: Icon(Icons.check, color: Colors.white, size: 18.sp))),
-                ]))
-          else
+        // ═══════════════════════════════════════════════════════════════════════════
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(10.r),
+            border: Border.all(color: _border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: localClass,
+              isExpanded: true,
+              dropdownColor: _bgElevated,
+              hint: _isLoadingClasses
+                  ? Row(children: [
+                SizedBox(
+                  width: 14.w, height: 14.w,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _examPrimary,
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Text('Loading classes...',
+                    style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+              ])
+                  : _availableClasses.isEmpty
+                  ? Text('No classes — add students first',
+                  style: TextStyle(color: _textMuted, fontSize: 13.sp))
+                  : Text('Choose class',
+                  style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+              items: _availableClasses
+                  .map((c) => DropdownMenuItem(
+                value: c,
+                child: Text(c,
+                    style: TextStyle(
+                        color: _textPrimary, fontSize: 14.sp)),
+              ))
+                  .toList(),
+              onChanged: _isLoadingClasses
+                  ? null
+                  : (val) => ss(() => localClass = val),
+            ),
+          ),
+        ),
+
+        else
             StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).collection('subjects').orderBy('name').snapshots(),
               builder: (context, subSnap) {
