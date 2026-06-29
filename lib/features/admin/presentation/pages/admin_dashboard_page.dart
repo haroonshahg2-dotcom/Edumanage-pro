@@ -1,3 +1,4 @@
+import 'package:edumanage/features/admin/presentation/pages/classes_module.dart';
 import 'package:edumanage/features/admin/presentation/pages/salary_module.dart';
 import 'package:edumanage/features/admin/presentation/pages/setting_module.dart';
 import 'package:edumanage/features/admin/presentation/pages/teacher_module.dart';
@@ -4931,6 +4932,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage>
         );
       case "Exams":
         return ExamResultsModule(
+          schoolId: widget.schoolId,
+          schoolName: widget.schoolName,
+          isMobile: isMobile,
+          isTablet: isTablet,
+          isDesktop: isDesktop,
+          showSnackBar: _showIndustrialSnackBar,
+        );
+      case "Classes":
+        return ClassesModule(
           schoolId: widget.schoolId,
           schoolName: widget.schoolName,
           isMobile: isMobile,
