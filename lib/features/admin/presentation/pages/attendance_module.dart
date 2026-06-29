@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -6,10 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 
-// ─── EXPORT HELPER ─────────────────────────────────────────
-// Uses only dart:convert (no extra package needed for CSV).
-// For real file saving on mobile/desktop you'd add path_provider + dart:io,
-// but the CSV string is ready to be shared via any Share plugin.
 class _CsvExporter {
   static String buildCsv(List<Map<String, dynamic>> records) {
     final buf = StringBuffer();
@@ -29,6 +25,49 @@ class _CsvExporter {
   static String _q(dynamic v) {
     final s = (v ?? '').toString().replaceAll('"', '""');
     return '"$s"';
+  }
+}
+
+/// Small pulsing live-indicator dot — purely cosmetic
+class _LiveDot extends StatefulWidget {
+  final Color color;
+  const _LiveDot({required this.color});
+
+  @override
+  State<_LiveDot> createState() => _LiveDotState();
+}
+
+class _LiveDotState extends State<_LiveDot> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(alignment: Alignment.center, children: [
+      AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, _) => Container(
+          width: 8.w + (_ctrl.value * 10.w),
+          height: 8.w + (_ctrl.value * 10.w),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: widget.color.withOpacity((1 - _ctrl.value) * 0.5),
+          ),
+        ),
+      ),
+      Container(width: 8.w, height: 8.w, decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle)),
+    ]);
   }
 }
 
@@ -181,26 +220,97 @@ class _AttendanceModuleState extends State<AttendanceModule>
   // ═══════════════════════════════════════════════════════════
   // HEADER
   // ═══════════════════════════════════════════════════════════
-  Widget _header() => widget.isMobile
-      ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    _headerTitle(),
-    SizedBox(height: 4.h),
-    _headerSub(),
-  ])
-      : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _headerTitle(large: true),
-      SizedBox(height: 8.h),
-      _headerSub(),
-    ]),
-    _statusBadge('System Active', _accentSuccess),
-  ]);
+  Widget _header() {
+    final todayStr = DateFormat('EEEE, MMM d').format(DateTime.now());
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20.r),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(widget.isMobile ? 16.w : 22.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_primary.withOpacity(0.18), _bgCard],
+          ),
+          border: Border.all(color: _primary.withOpacity(0.25)),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -30.h, right: -20.w,
+              child: Container(width: 120.w, height: 120.w,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _primary.withOpacity(0.10))),
+            ),
+            Positioned(
+              bottom: -40.h, right: 70.w,
+              child: Container(width: 90.w, height: 90.w,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: _accentInfo.withOpacity(0.07))),
+            ),
+            widget.isMobile
+                ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                _headerIconBadge(11.w, 24.sp),
+                SizedBox(width: 12.w),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _headerTitle(),
+                  SizedBox(height: 2.h),
+                  _headerSub(),
+                ])),
+              ]),
+              SizedBox(height: 12.h),
+              Row(children: [
+                Icon(Icons.calendar_today_outlined, color: _textMuted, size: 13.sp),
+                SizedBox(width: 6.w),
+                Text(todayStr, style: TextStyle(color: _textMuted, fontSize: 12.sp, fontWeight: FontWeight.w600)),
+                SizedBox(width: 14.w),
+                _statusBadge('Active', _accentSuccess),
+              ]),
+            ])
+                : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [
+                _headerIconBadge(14.w, 28.sp),
+                SizedBox(width: 16.w),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  ShaderMask(
+                    shaderCallback: (b) => LinearGradient(colors: [_textPrimary, _primaryLight])
+                        .createShader(b),
+                    child: _headerTitle(large: true),
+                  ),
+                  SizedBox(height: 6.h),
+                  Row(children: [
+                    _headerSub(),
+                    SizedBox(width: 14.w),
+                    Icon(Icons.calendar_today_outlined, color: _textMuted, size: 13.sp),
+                    SizedBox(width: 6.w),
+                    Text(todayStr, style: TextStyle(color: _textMuted, fontSize: 13.sp, fontWeight: FontWeight.w600)),
+                  ]),
+                ]),
+              ]),
+              _statusBadge('System Active', _accentSuccess),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _headerIconBadge(double padding, double iconSize) => Container(
+    padding: EdgeInsets.all(padding),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_primary, _primaryLight]),
+      borderRadius: BorderRadius.circular(padding + 4.r),
+      boxShadow: [BoxShadow(color: _primary.withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 6))],
+    ),
+    child: Icon(Icons.event_available_rounded, color: Colors.white, size: iconSize),
+  );
 
   Widget _headerTitle({bool large = false}) => Text(
     'Attendance Management',
     style: TextStyle(
-      color: _textPrimary,
-      fontSize: large ? 28.sp : 22.sp,
+      color: large ? Colors.white : _textPrimary,
+      fontSize: large ? 28.sp : 20.sp,
       fontWeight: FontWeight.w800,
       letterSpacing: -0.5,
     ),
@@ -208,23 +318,22 @@ class _AttendanceModuleState extends State<AttendanceModule>
 
   Widget _headerSub() => Text(
     'Mark, track & analyze student attendance',
-    style: TextStyle(color: _textSecondary, fontSize: 14.sp),
+    style: TextStyle(color: _textSecondary, fontSize: 13.sp),
   );
 
+
+
   Widget _statusBadge(String label, Color color) => Container(
-    padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+    padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
     decoration: BoxDecoration(
       color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(10.r),
+      borderRadius: BorderRadius.circular(20.r),
       border: Border.all(color: color.withOpacity(0.3)),
     ),
-    child: Row(children: [
-      Container(
-        width: 8.w, height: 8.w,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      _LiveDot(color: color),
       SizedBox(width: 8.w),
-      Text(label, style: TextStyle(color: color, fontSize: 13.sp, fontWeight: FontWeight.w600)),
+      Text(label, style: TextStyle(color: color, fontSize: 12.sp, fontWeight: FontWeight.w700)),
     ]),
   );
 
@@ -276,11 +385,7 @@ class _AttendanceModuleState extends State<AttendanceModule>
     padding: EdgeInsets.all(16.w),
     decoration: _cardDecor(),
     child: widget.isMobile
-        ? Column(children: [
-      _datePicker(),
-      SizedBox(height: 12.h),
-      _classDropdown(),
-    ])
+        ? Column(children: [_datePicker(), SizedBox(height: 12.h), _classDropdown()])
         : Row(children: [
       Expanded(child: _datePicker()),
       SizedBox(width: 16.w),
@@ -296,14 +401,21 @@ class _AttendanceModuleState extends State<AttendanceModule>
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
       decoration: _elevatedDecor(),
       child: Row(children: [
-        Icon(Icons.calendar_today, color: _primary, size: 20.sp),
+        Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [_primary, _primaryLight]),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          child: Icon(Icons.calendar_today, color: Colors.white, size: 16.sp),
+        ),
         SizedBox(width: 12.w),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Selected Date', style: TextStyle(color: _textMuted, fontSize: 11.sp)),
             SizedBox(height: 2.h),
             Text(_displayDate(_selectedDate),
-                style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: _textPrimary, fontSize: 14.sp, fontWeight: FontWeight.w700)),
           ]),
         ),
         Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 20.sp),
@@ -314,26 +426,32 @@ class _AttendanceModuleState extends State<AttendanceModule>
   Widget _classDropdown() => Container(
     padding: EdgeInsets.symmetric(horizontal: 12.w),
     decoration: _elevatedDecor(),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: _selectedClass,
-        isExpanded: true,
-        dropdownColor: _bgElevated,
-        hint: Text('Select Class', style: TextStyle(color: _textMuted, fontSize: 14.sp)),
-        icon: Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 20.sp),
-        style: TextStyle(color: _textPrimary, fontSize: 14.sp),
-        items: _availableClasses
-            .map((c) => DropdownMenuItem(
-          value: c,
-          child: Text('Class $c', style: TextStyle(color: _textPrimary, fontSize: 14.sp)),
-        ))
-            .toList(),
-        onChanged: (v) => setState(() {
-          _selectedClass = v;
-          _attendanceCache.clear();
-        }),
+    child: Row(children: [
+      Icon(Icons.class_outlined, color: _selectedClass != null ? _primary : _textMuted, size: 18.sp),
+      SizedBox(width: 8.w),
+      Expanded(
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _selectedClass,
+            isExpanded: true,
+            dropdownColor: _bgElevated,
+            hint: Text('Select Class', style: TextStyle(color: _textMuted, fontSize: 14.sp)),
+            icon: Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 20.sp),
+            style: TextStyle(color: _textPrimary, fontSize: 14.sp),
+            items: _availableClasses
+                .map((c) => DropdownMenuItem(
+              value: c,
+              child: Text('Class $c', style: TextStyle(color: _textPrimary, fontSize: 14.sp)),
+            ))
+                .toList(),
+            onChanged: (v) => setState(() {
+              _selectedClass = v;
+              _attendanceCache.clear();
+            }),
+          ),
+        ),
       ),
-    ),
+    ]),
   );
 
   Widget _inlineQuickStats() {
@@ -476,17 +594,24 @@ class _AttendanceModuleState extends State<AttendanceModule>
   // ─── BULK ACTIONS BAR ───
   Widget _bulkActions(int total, Map<String, String> attMap) {
     final marked = attMap.values.where((s) => s != 'not_marked').length;
+    final allDone = marked == total && total > 0;
     return Container(
-      padding: EdgeInsets.all(12.w),
+      padding: EdgeInsets.all(14.w),
       decoration: _cardDecor(),
       child: Row(children: [
-        _pill('$marked / $total Marked', _primary),
+        Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: allDone ? [_accentSuccess, _accentSuccess.withOpacity(0.7)] : [_primary, _primaryLight]),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          child: Icon(allDone ? Icons.check_circle : Icons.fact_check_outlined, color: Colors.white, size: 16.sp),
+        ),
+        SizedBox(width: 10.w),
+        _pill('$marked / $total Marked', allDone ? _accentSuccess : _primary),
         const Spacer(),
         if (_isLoading)
-          SizedBox(
-            width: 20.w, height: 20.w,
-            child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
-          )
+          SizedBox(width: 20.w, height: 20.w, child: CircularProgressIndicator(strokeWidth: 2, color: _primary))
         else if (marked < total)
           _actionBtn('Mark All Present', _accentSuccess, Icons.done_all, () => _markAll('present')),
       ]),
@@ -494,32 +619,32 @@ class _AttendanceModuleState extends State<AttendanceModule>
   }
 
   Widget _pill(String text, Color color) => Container(
-    padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+    padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(8.r),
+      color: color.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(20.r),
+      border: Border.all(color: color.withOpacity(0.3)),
     ),
-    child: Text(text, style: TextStyle(color: color, fontSize: 12.sp, fontWeight: FontWeight.w600)),
+    child: Text(text, style: TextStyle(color: color, fontSize: 12.sp, fontWeight: FontWeight.w700)),
   );
 
   Widget _actionBtn(String label, Color color, IconData icon, VoidCallback onTap) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+          padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 9.h),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8.r),
-            border: Border.all(color: color.withOpacity(0.3)),
+            gradient: LinearGradient(colors: [color, color.withOpacity(0.75)]),
+            borderRadius: BorderRadius.circular(10.r),
+            boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3))],
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, color: color, size: 16.sp),
+            Icon(icon, color: Colors.white, size: 16.sp),
             SizedBox(width: 6.w),
-            Text(label, style: TextStyle(color: color, fontSize: 12.sp, fontWeight: FontWeight.w600)),
+            Text(label, style: TextStyle(color: Colors.white, fontSize: 12.sp, fontWeight: FontWeight.w700)),
           ]),
         ),
       );
-
   // ─── STUDENT CARD ───
   Widget _studentCard({
     required DocumentSnapshot student,
@@ -530,42 +655,52 @@ class _AttendanceModuleState extends State<AttendanceModule>
     final name   = data['name'] ?? 'Unknown';
     final roll   = (data['rollNumber'] ?? data['roll'] ?? '--').toString();
     final gender = data['gender'] ?? 'male';
-    return Container(
-      margin: EdgeInsets.only(bottom: 10.h),
-      padding: EdgeInsets.all(14.w),
-      decoration: BoxDecoration(
-        color: _bgCard,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: status == 'not_marked'
-              ? _border
-              : (_statusColors[status] ?? _border).withOpacity(0.3),
+    final barColor = status == 'not_marked' ? _border : (_statusColors[status] ?? _border);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14.r),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 10.h),
+        decoration: BoxDecoration(
+          color: _bgCard,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(color: status == 'not_marked' ? _border : barColor.withOpacity(0.35)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10, offset: const Offset(0, 3))],
+        ),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(width: 4.w, color: barColor),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(14.w),
+                child: widget.isMobile
+                    ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  _studentInfo(name, roll, gender, status),
+                  SizedBox(height: 12.h),
+                  _statusSelector(status, onChanged),
+                ])
+                    : Row(children: [
+                  _studentInfo(name, roll, gender, status),
+                  const Spacer(),
+                  _statusSelector(status, onChanged),
+                ]),
+              ),
+            ),
+          ]),
         ),
       ),
-      child: widget.isMobile
-          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _studentInfo(name, roll, gender, status),
-        SizedBox(height: 12.h),
-        _statusSelector(status, onChanged),
-      ])
-          : Row(children: [
-        _studentInfo(name, roll, gender, status),
-        const Spacer(),
-        _statusSelector(status, onChanged),
-      ]),
     );
   }
 
   Widget _studentInfo(String name, String roll, String gender, String status) {
-    final color = gender == 'female'
-        ? const Color(0xFFC2185B)
-        : _primary;
+    final color = gender == 'female' ? const Color(0xFFC2185B) : _primary;
     return Row(children: [
       Container(
         width: 44.w, height: 44.w,
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
-          borderRadius: BorderRadius.circular(10.r),
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color, color.withOpacity(0.7)]),
+          borderRadius: BorderRadius.circular(12.r),
+          boxShadow: [BoxShadow(color: color.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Center(
           child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -574,18 +709,16 @@ class _AttendanceModuleState extends State<AttendanceModule>
       ),
       SizedBox(width: 12.w),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(name, style: TextStyle(color: _textPrimary, fontSize: 15.sp, fontWeight: FontWeight.w600)),
+        Text(name, style: TextStyle(color: _textPrimary, fontSize: 15.sp, fontWeight: FontWeight.w700)),
         SizedBox(height: 4.h),
         Row(children: [
           _miniBadge('Roll: $roll', _textSecondary),
-          if (status != 'not_marked') ...[
-            SizedBox(width: 8.w),
-            _miniBadge2(status),
-          ],
+          if (status != 'not_marked') ...[SizedBox(width: 8.w), _miniBadge2(status)],
         ]),
       ]),
     ]);
   }
+
 
   Widget _miniBadge2(String status) {
     final color = _statusColors[status] ?? _textMuted;
@@ -616,11 +749,13 @@ class _AttendanceModuleState extends State<AttendanceModule>
             margin: EdgeInsets.only(left: 6.w),
             padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
-              color: sel ? color.withOpacity(0.2) : _bgElevated,
+              gradient: sel ? LinearGradient(colors: [color, color.withOpacity(0.75)]) : null,
+              color: sel ? null : _bgElevated,
               borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: sel ? color : _border, width: sel ? 2 : 1),
+              border: Border.all(color: sel ? color : _border, width: sel ? 0 : 1),
+              boxShadow: sel ? [BoxShadow(color: color.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 3))] : null,
             ),
-            child: Icon(_statusIcons[s], color: sel ? color : _textMuted, size: 20.sp),
+            child: Icon(_statusIcons[s], color: sel ? Colors.white : _textMuted, size: 20.sp),
           ),
         );
       }).toList());
@@ -682,10 +817,17 @@ class _AttendanceModuleState extends State<AttendanceModule>
           'markedBy'   : 'admin',
           'markedAt'   : FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        if (status == 'present') present++;
-        else if (status == 'absent') absent++;
-        else if (status == 'late') late++;
-        else if (status == 'leave') leave++;
+        if (status == 'present') {
+          present++;
+        } else if (status == 'absent') {
+          absent++;
+        }
+        else if (status == 'late') {
+          late++;
+        }
+        else if (status == 'leave') {
+          leave++;
+        }
       }
 
       final total = students.docs.length;
@@ -1766,17 +1908,20 @@ class _AttendanceModuleState extends State<AttendanceModule>
 
   BoxDecoration _cardDecor({bool shadow = false}) => BoxDecoration(
     color: _bgCard,
-    borderRadius: BorderRadius.circular(12.r),
+    borderRadius: BorderRadius.circular(14.r),
     border: Border.all(color: _border),
-    boxShadow: shadow
-        ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))]
-        : null,
+    boxShadow: [
+      BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 14, offset: const Offset(0, 4)),
+    ],
   );
 
   BoxDecoration _elevatedDecor() => BoxDecoration(
     color: _bgElevated,
-    borderRadius: BorderRadius.circular(10.r),
+    borderRadius: BorderRadius.circular(12.r),
     border: Border.all(color: _border),
+    boxShadow: [
+      BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 2)),
+    ],
   );
 
   Widget _miniBadge(String text, Color textColor) => Container(
@@ -1859,7 +2004,7 @@ class _AttendanceModuleState extends State<AttendanceModule>
     shrinkWrap: true,
     physics: const NeverScrollableScrollPhysics(),
     itemCount: 5,
-    itemBuilder: (_, __) => Shimmer.fromColors(
+    itemBuilder: (_, _) => Shimmer.fromColors(
       baseColor: _bgCard,
       highlightColor: _bgElevated,
       child: Container(
