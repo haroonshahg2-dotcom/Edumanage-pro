@@ -99,6 +99,494 @@ class _ClassesModuleState extends State<ClassesModule>
     '6', '7', '8', '9', '10',
   ];
 
+  void _showBulkCreateDialog() {
+    // Local state inside dialog
+    String _bulkGrade      = '1';
+    List<String> _sections = ['A'];
+    String _bulkShift      = 'Morning';
+    int _bulkCapacity      = 40;
+    bool _isCreating       = false;
+    String _status         = '';
+
+    final _sectionOptions = ['A','B','C','D','E','F'];
+    final _shiftOptions   = ['Morning','Afternoon','Evening'];
+    final _gradeOptions   = List.generate(12, (i) => '${i + 1}');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          Future<void> _createAll() async {
+            setDialog(() { _isCreating = true; _status = 'Creating classes…'; });
+            int created = 0;
+            int skipped = 0;
+
+            for (final section in _sections) {
+              final className = 'Grade $_bulkGrade$section';
+              try {
+                // Check if already exists
+                final existing = await FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(widget.schoolId)
+                    .collection('classes')
+                    .where('name', isEqualTo: className)
+                    .where('shift', isEqualTo: _bulkShift)
+                    .get();
+
+                if (existing.docs.isNotEmpty) {
+                  skipped++;
+                  setDialog(() => _status = '⚠️ $className already exists, skipping…');
+                  continue;
+                }
+
+                await FirebaseFirestore.instance
+                    .collection('schools')
+                    .doc(widget.schoolId)
+                    .collection('classes')
+                    .add({
+                  'name':         className,
+                  'grade':        _bulkGrade,
+                  'section':      section,
+                  'shift':        _bulkShift,
+                  'capacity':     _bulkCapacity,
+                  'classTeacher': '',
+                  'teacherId':    '',
+                  'subjects':     [],
+                  'room':         '',
+                  'createdAt':    FieldValue.serverTimestamp(),
+                });
+
+                created++;
+                setDialog(() => _status = '✅ Created $className');
+              } catch (e) {
+                setDialog(() => _status = '❌ Error creating $className: $e');
+              }
+            }
+
+            setDialog(() {
+              _isCreating = false;
+              _status = created > 0
+                  ? '✅ Done! Created $created class${created > 1 ? 'es' : ''}'
+                  '${skipped > 0 ? ', skipped $skipped existing' : ''}.'
+                  : '⚠️ No classes created — all already exist.';
+            });
+
+            await Future.delayed(const Duration(seconds: 2));
+            if (ctx.mounted) Navigator.pop(ctx);
+          }
+
+          return Dialog(
+            backgroundColor: _bgCard,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20.r)),
+            child: Container(
+              width: 480.w,
+              padding: EdgeInsets.all(24.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Header ──────────────────────────────────────────────
+                  Row(children: [
+                    Container(
+                      padding: EdgeInsets.all(10.w),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                            colors: [_primary, _primaryLight]),
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Icon(Icons.auto_awesome_rounded,
+                          color: Colors.white, size: 22.sp),
+                    ),
+                    SizedBox(width: 14.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Bulk Create Classes',
+                              style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w800)),
+                          Text(
+                            'Create multiple sections at once',
+                            style: TextStyle(
+                                color: _textSecondary, fontSize: 12.sp),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _isCreating ? null : () => Navigator.pop(ctx),
+                      child: Icon(Icons.close_rounded,
+                          color: _textMuted, size: 22.sp),
+                    ),
+                  ]),
+
+                  SizedBox(height: 24.h),
+                  Divider(color: _border, height: 1),
+                  SizedBox(height: 20.h),
+
+                  // ── Grade picker ─────────────────────────────────────────
+                  Text('Grade',
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 8.h),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 14.w),
+                    decoration: BoxDecoration(
+                      color: _bgElevated,
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(color: _border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _bulkGrade,
+                        isExpanded: true,
+                        dropdownColor: _bgElevated,
+                        icon: Icon(Icons.keyboard_arrow_down_rounded,
+                            color: _textMuted),
+                        items: _gradeOptions.map((g) => DropdownMenuItem(
+                          value: g,
+                          child: Text('Grade $g',
+                              style: TextStyle(
+                                  color: _textPrimary, fontSize: 13.sp)),
+                        )).toList(),
+                        onChanged: _isCreating
+                            ? null
+                            : (v) => setDialog(() => _bulkGrade = v ?? '1'),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // ── Section selector ─────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Sections',
+                          style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600)),
+                      Text(
+                        '${_sections.length} selected',
+                        style: TextStyle(color: _primary, fontSize: 12.sp),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8.h),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 8.h,
+                    children: _sectionOptions.map((s) {
+                      final selected = _sections.contains(s);
+                      return GestureDetector(
+                        onTap: _isCreating
+                            ? null
+                            : () => setDialog(() {
+                          if (selected) {
+                            if (_sections.length > 1) _sections.remove(s);
+                          } else {
+                            _sections.add(s);
+                            _sections.sort();
+                          }
+                        }),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 160),
+                          width: 44.w,
+                          height: 44.w,
+                          decoration: BoxDecoration(
+                            gradient: selected
+                                ? const LinearGradient(
+                                colors: [_primary, _primaryLight])
+                                : null,
+                            color: selected ? null : _bgElevated,
+                            borderRadius: BorderRadius.circular(10.r),
+                            border: Border.all(
+                              color: selected
+                                  ? Colors.transparent
+                                  : _border,
+                            ),
+                            boxShadow: selected
+                                ? [BoxShadow(
+                                color: _primary.withOpacity(0.30),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3))]
+                                : [],
+                          ),
+                          child: Center(
+                            child: Text(
+                              s,
+                              style: TextStyle(
+                                color: selected ? Colors.white : _textSecondary,
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // ── Shift ────────────────────────────────────────────────
+                  Text('Shift',
+                      style: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600)),
+                  SizedBox(height: 8.h),
+                  Row(
+                    children: _shiftOptions.map((s) {
+                      final sel = _bulkShift == s;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: _isCreating
+                              ? null
+                              : () => setDialog(() => _bulkShift = s),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            margin: EdgeInsets.only(
+                                right: s != 'Evening' ? 8.w : 0),
+                            padding: EdgeInsets.symmetric(vertical: 11.h),
+                            decoration: BoxDecoration(
+                              gradient: sel
+                                  ? const LinearGradient(
+                                  colors: [_primary, _primaryLight])
+                                  : null,
+                              color: sel ? null : _bgElevated,
+                              borderRadius: BorderRadius.circular(10.r),
+                              border: Border.all(
+                                  color: sel ? Colors.transparent : _border),
+                              boxShadow: sel
+                                  ? [BoxShadow(
+                                  color: _primary.withOpacity(0.28),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3))]
+                                  : [],
+                            ),
+                            child: Center(
+                              child: Text(s,
+                                  style: TextStyle(
+                                    color: sel ? Colors.white : _textSecondary,
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w600,
+                                  )),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // ── Capacity ─────────────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Capacity per class',
+                          style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600)),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 12.w, vertical: 4.h),
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Text(
+                          '$_bulkCapacity students',
+                          style: TextStyle(
+                              color: _primary,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: _primary,
+                      inactiveTrackColor: _bgElevated,
+                      thumbColor: _primaryLight,
+                      overlayColor: _primary.withOpacity(0.15),
+                      trackHeight: 4,
+                    ),
+                    child: Slider(
+                      value: _bulkCapacity.toDouble(),
+                      min: 10, max: 80, divisions: 14,
+                      onChanged: _isCreating
+                          ? null
+                          : (v) => setDialog(
+                              () => _bulkCapacity = v.round()),
+                    ),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // ── Preview ──────────────────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.all(14.w),
+                    decoration: BoxDecoration(
+                      color: _bgElevated,
+                      borderRadius: BorderRadius.circular(10.r),
+                      border: Border.all(color: _border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Preview — ${_sections.length} class${_sections.length > 1 ? 'es' : ''} will be created',
+                            style: TextStyle(
+                                color: _textSecondary,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w600)),
+                        SizedBox(height: 8.h),
+                        Wrap(
+                          spacing: 6.w,
+                          runSpacing: 6.h,
+                          children: _sections.map((s) => Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 10.w, vertical: 5.h),
+                            decoration: BoxDecoration(
+                              color: _primary.withOpacity(0.10),
+                              borderRadius: BorderRadius.circular(6.r),
+                              border: Border.all(
+                                  color: _primary.withOpacity(0.25)),
+                            ),
+                            child: Text(
+                              'Grade $_bulkGrade$s · $_bulkShift · $_bulkCapacity',
+                              style: TextStyle(
+                                  color: _primary,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          )).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Status message ───────────────────────────────────────
+                  if (_status.isNotEmpty) ...[
+                    SizedBox(height: 12.h),
+                    Container(
+                      padding: EdgeInsets.all(12.w),
+                      decoration: BoxDecoration(
+                        color: _status.startsWith('✅')
+                            ? _accentGreen.withOpacity(0.08)
+                            : _status.startsWith('❌')
+                            ? _accentRed.withOpacity(0.08)
+                            : _accentAmber.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Text(_status,
+                          style: TextStyle(
+                              color: _status.startsWith('✅')
+                                  ? _accentGreen
+                                  : _status.startsWith('❌')
+                                  ? _accentRed
+                                  : _accentAmber,
+                              fontSize: 12.sp)),
+                    ),
+                  ],
+
+                  SizedBox(height: 20.h),
+
+                  // ── Actions ──────────────────────────────────────────────
+                  Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _isCreating ? null : () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 13.h),
+                          decoration: BoxDecoration(
+                            color: _bgElevated,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(color: _border),
+                          ),
+                          child: Center(
+                            child: Text('Cancel',
+                                style: TextStyle(
+                                    color: _textSecondary,
+                                    fontSize: 14.sp,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12.w),
+                    Expanded(
+                      flex: 2,
+                      child: GestureDetector(
+                        onTap: _isCreating ? null : _createAll,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          padding: EdgeInsets.symmetric(vertical: 13.h),
+                          decoration: BoxDecoration(
+                            gradient: _isCreating
+                                ? LinearGradient(colors: [
+                              _primary.withOpacity(0.5),
+                              _primaryLight.withOpacity(0.5)
+                            ])
+                                : const LinearGradient(
+                                colors: [_primary, _primaryLight]),
+                            borderRadius: BorderRadius.circular(12.r),
+                            boxShadow: _isCreating
+                                ? []
+                                : [BoxShadow(
+                                color: _primary.withOpacity(0.35),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5))],
+                          ),
+                          child: Center(
+                            child: _isCreating
+                                ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2.5),
+                            )
+                                : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_awesome_rounded,
+                                    color: Colors.white, size: 18.sp),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'Create ${_sections.length} Class${_sections.length > 1 ? 'es' : ''}',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14.sp,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -202,7 +690,6 @@ class _ClassesModuleState extends State<ClassesModule>
         ),
         child: Stack(
           children: [
-            // Decorative circles (same as student module)
             Positioned(
               top: -28.h, right: -16.w,
               child: Container(
@@ -234,10 +721,18 @@ class _ClassesModuleState extends State<ClassesModule>
                   Expanded(child: _headerTitleBlock()),
                 ]),
                 SizedBox(height: 16.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: _primaryButton('+ Add Class', _openAddClassDialog),
-                ),
+                Row(children: [
+                  Expanded(
+                    child: _secondaryButton(
+                        '⚡ Bulk', _showBulkCreateDialog),
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    flex: 2,
+                    child: _primaryButton(
+                        '+ Add Class', _openAddClassDialog),
+                  ),
+                ]),
               ],
             )
                 : Row(
@@ -246,14 +741,13 @@ class _ClassesModuleState extends State<ClassesModule>
                 _headerIconBadge(),
                 SizedBox(width: 18.w),
                 Expanded(child: _headerTitleBlock()),
-                // Live stats
                 StreamBuilder<QuerySnapshot>(
                   stream: _classStream,
                   builder: (context, snap) {
                     final total = snap.data?.docs.length ?? 0;
                     return Row(children: [
-                      _headerStatPill(
-                          Icons.class_outlined, '$total', 'Classes', _primary),
+                      _headerStatPill(Icons.class_outlined, '$total',
+                          'Classes', _primary),
                       SizedBox(width: 8.w),
                     ]);
                   },
@@ -263,10 +757,35 @@ class _ClassesModuleState extends State<ClassesModule>
                 SizedBox(width: 10.w),
                 _sortButton(),
                 SizedBox(width: 10.w),
+                // ✅ Bulk Create button added
+                _secondaryButton('⚡ Bulk Create', _showBulkCreateDialog),
+                SizedBox(width: 10.w),
                 _primaryButton('+ Add Class', _openAddClassDialog),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _secondaryButton(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          color: _bgElevated,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: _border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: _textSecondary,
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -920,15 +1439,16 @@ class _ClassCardState extends State<_ClassCard> {
 
   @override
   Widget build(BuildContext context) {
-    final d       = widget.doc.data() as Map<String, dynamic>;
-    final name    = d['name']         as String? ?? '';
-    final grade   = d['grade']        as String? ?? '';
-    final section = d['section']      as String? ?? '';
-    final room    = d['room']         as String? ?? '';
-    final teacher = d['classTeacher'] as String? ?? '';
-    final capacity= d['capacity']     as int?    ?? 0;
-    final shift   = d['shift']        as String? ?? '';
-    final color   = _gradeColor(grade);
+    final d        = widget.doc.data() as Map<String, dynamic>;
+    final name     = d['name']         as String? ?? '';
+    final grade    = d['grade']        as String? ?? '';
+    final section  = d['section']      as String? ?? '';
+    final room     = d['room']         as String? ?? '';
+    final teacher  = d['classTeacher'] as String? ?? '';
+    final capacity = d['capacity']     as int?    ?? 0;
+    final shift    = d['shift']        as String? ?? '';
+    final subjects = (d['subjects'] as List?)?.length ?? 0;
+    final color    = _gradeColor(grade);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -945,74 +1465,95 @@ class _ClassCardState extends State<_ClassCard> {
               width: _hovered ? 1.5 : 1,
             ),
             boxShadow: _hovered
-                ? [
-              BoxShadow(
+                ? [BoxShadow(
                 color: color.withOpacity(0.20),
                 blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ]
-                : [
-              BoxShadow(
+                offset: const Offset(0, 8))]
+                : [BoxShadow(
                 color: Colors.black.withOpacity(0.18),
                 blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
+                offset: const Offset(0, 3))],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16.r),
             child: Stack(
               children: [
-                // ── Gradient top accent bar ──────────────────────────────
+                // ── Gradient top accent bar ──
                 Positioned(
                   top: 0, left: 0, right: 0,
                   child: Container(
                     height: 4.h,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color, color.withOpacity(0.4)],
-                      ),
+                          colors: [color, color.withOpacity(0.4)]),
                     ),
                   ),
                 ),
 
                 Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 14.h),
+                  padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,   // ✅ no more huge gap
                     children: [
-                      // ── Top row ─────────────────────────────────────────
+                      // ── Top row: badge + actions ──
                       Row(children: [
-                        // Grade badge with gradient
                         Container(
-                          width: 54.w,
-                          height: 54.w,
+                          width: 50.w,
+                          height: 50.w,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                color.withOpacity(0.18),
+                                color.withOpacity(0.20),
                                 color.withOpacity(0.06),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.circular(14.r),
+                            borderRadius: BorderRadius.circular(13.r),
                             border: Border.all(
-                                color: color.withOpacity(0.30), width: 1.5),
+                                color: color.withOpacity(0.35), width: 1.5),
                           ),
                           child: Center(
+                            // ✅ shows grade number only, not full "10A"
                             child: Text(
-                              name,
+                              grade.isNotEmpty ? grade : name,
                               style: TextStyle(
                                 color: color,
-                                fontSize: name.length > 3 ? 11.sp : 16.sp,
+                                fontSize: 18.sp,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
                         ),
-                        const Spacer(),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 3.h),
+                              Text(
+                                shift.isNotEmpty ? shift : 'No shift set',
+                                style: TextStyle(
+                                  color: shift.isNotEmpty
+                                      ? _accentAmber
+                                      : _textMuted,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         _iconBtn(Icons.edit_outlined, _primary, widget.onEdit),
                         SizedBox(width: 6.w),
                         _iconBtn(
@@ -1021,27 +1562,34 @@ class _ClassCardState extends State<_ClassCard> {
 
                       SizedBox(height: 12.h),
 
-                      // ── Chips ────────────────────────────────────────────
+                      // ── Chips: section + subjects ──
                       Wrap(spacing: 6.w, runSpacing: 6.h, children: [
-                        _chip('Grade $grade', color),
                         if (section.isNotEmpty)
                           _chip('Section $section', _textMuted),
-                        if (shift.isNotEmpty)
-                          _chip(shift, _accentAmber),
+                        _chip('$subjects subject${subjects == 1 ? '' : 's'}',
+                            _accentBlue),
                       ]),
 
                       SizedBox(height: 10.h),
 
-                      // ── Room & teacher ───────────────────────────────────
-                      if (room.isNotEmpty) _infoRow(Icons.room_outlined, room),
-                      if (teacher.isNotEmpty) ...[
-                        SizedBox(height: 4.h),
-                        _infoRow(Icons.person_outline, teacher),
-                      ],
+                      // ── Room & teacher — always show both, fallback text ──
+                      _infoRow(
+                        Icons.room_outlined,
+                        room.isNotEmpty ? room : 'Room not assigned',
+                        dimmed: room.isEmpty,
+                      ),
+                      SizedBox(height: 4.h),
+                      _infoRow(
+                        Icons.person_outline,
+                        teacher.isNotEmpty ? teacher : 'No teacher assigned',
+                        dimmed: teacher.isEmpty,
+                      ),
 
-                      const Spacer(),
+                      SizedBox(height: 14.h),
+                      Divider(color: _border, height: 1),
+                      SizedBox(height: 12.h),
 
-                      // ── Student count + progress ─────────────────────────
+                      // ── Student count + progress ──
                       _buildStudentCountRow(capacity),
                     ],
                   ),
@@ -1075,36 +1623,32 @@ class _ClassCardState extends State<_ClassCard> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.people_outline, color: _textMuted, size: 13.sp),
-                SizedBox(width: 5.w),
+            Row(children: [
+              Icon(Icons.people_outline, color: _textMuted, size: 13.sp),
+              SizedBox(width: 5.w),
+              Text(
+                '$count${capacity > 0 ? ' / $capacity' : ''} students',
+                style: TextStyle(color: _textSecondary, fontSize: 11.sp),
+              ),
+              const Spacer(),
+              if (capacity > 0)
                 Text(
-                  '$count${capacity > 0 ? ' / $capacity' : ''} students',
-                  style: TextStyle(
-                      color: _textSecondary, fontSize: 11.sp),
-                ),
-                const Spacer(),
-                Text(
-                  capacity > 0
-                      ? '${(pct * 100).toStringAsFixed(0)}% full'
-                      : '',
+                  '${(pct * 100).toStringAsFixed(0)}% full',
                   style: TextStyle(
                       color: fillColor,
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w700),
                 ),
-              ],
-            ),
+            ]),
             if (capacity > 0) ...[
-              SizedBox(height: 5.h),
+              SizedBox(height: 6.h),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4.r),
                 child: LinearProgressIndicator(
                   value: pct.clamp(0.0, 1.0),
                   backgroundColor: _bgElevated,
                   valueColor: AlwaysStoppedAnimation<Color>(fillColor),
-                  minHeight: 4.h,
+                  minHeight: 5.h,
                 ),
               ),
             ],
@@ -1113,6 +1657,7 @@ class _ClassCardState extends State<_ClassCard> {
       },
     );
   }
+
 
   Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
@@ -1142,19 +1687,26 @@ class _ClassCardState extends State<_ClassCard> {
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, color: _textMuted, size: 12.sp),
-        SizedBox(width: 5.w),
-        Expanded(
-          child: Text(text,
-              style: TextStyle(color: _textSecondary, fontSize: 11.sp),
-              overflow: TextOverflow.ellipsis),
+  Widget _infoRow(IconData icon, String text, {bool dimmed = false}) {
+    return Row(children: [
+      Icon(icon,
+          color: dimmed ? _textMuted.withOpacity(0.5) : _textMuted,
+          size: 13.sp),
+      SizedBox(width: 6.w),
+      Expanded(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: dimmed ? _textMuted.withOpacity(0.6) : _textSecondary,
+            fontSize: 12.sp,
+            fontStyle: dimmed ? FontStyle.italic : FontStyle.normal,
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
-      ],
-    );
+      ),
+    ]);
   }
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1816,9 +2368,11 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
           .collection('schools')
           .doc(widget.schoolId)
           .collection('teachers')
-          .where('status', isEqualTo: 'active')
+      // ✅ No status filter — shows all teachers regardless of status field
+          .orderBy('name')
           .snapshots(),
       builder: (context, snap) {
+        // Loading
         if (!snap.hasData) {
           return Container(
             height: 48.h,
@@ -1839,21 +2393,31 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
         }
 
         final teachers = snap.data!.docs;
+
+        // Empty — but now shows helpful message with reason
         if (teachers.isEmpty) {
           return Container(
-            padding: EdgeInsets.all(12.w),
+            padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-              color: _bgElevated,
+              color: _accentAmber.withOpacity(0.06),
               borderRadius: BorderRadius.circular(10.r),
-              border: Border.all(color: _border),
+              border: Border.all(color: _accentAmber.withOpacity(0.25)),
             ),
-            child: Text(
-              'No teachers found. Add teachers first.',
-              style: TextStyle(color: _textMuted, fontSize: 12.sp),
-            ),
+            child: Row(children: [
+              Icon(Icons.info_outline_rounded,
+                  color: _accentAmber, size: 16.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  'No teachers found — add teachers first to assign a class teacher.',
+                  style: TextStyle(color: _accentAmber, fontSize: 12.sp),
+                ),
+              ),
+            ]),
           );
         }
 
+        // Dropdown
         return Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w),
           decoration: BoxDecoration(
@@ -1866,22 +2430,82 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
               value: _teacherId.isEmpty ? null : _teacherId,
               isExpanded: true,
               dropdownColor: _bgElevated,
-              hint: Text('Select class teacher (optional)',
-                  style: TextStyle(color: _textMuted, fontSize: 13.sp)),
+              menuMaxHeight: 280.h,
+              hint: Text(
+                'Select class teacher (optional)',
+                style: TextStyle(color: _textMuted, fontSize: 13.sp),
+              ),
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  color: _textMuted, size: 20.sp),
               items: [
+                // None option
                 DropdownMenuItem<String>(
                   value: '',
-                  child: Text('None',
+                  child: Text('None — unassigned',
                       style: TextStyle(
-                          color: _textSecondary, fontSize: 13.sp)),
+                          color: _textSecondary,
+                          fontSize: 13.sp,
+                          fontStyle: FontStyle.italic)),
                 ),
                 ...teachers.map((t) {
                   final td = t.data() as Map<String, dynamic>;
+                  final name       = td['name']       as String? ?? 'Unknown';
+                  final subject    = td['subject']    as String? ?? '';
+                  final hasStatus  = td.containsKey('status');
+                  final isActive   = td['status'] == 'active';
+
                   return DropdownMenuItem<String>(
                     value: t.id,
-                    child: Text(td['name'] ?? '',
-                        style: TextStyle(
-                            color: _textPrimary, fontSize: 13.sp)),
+                    child: Row(children: [
+                      // Avatar circle
+                      Container(
+                        width: 28.w,
+                        height: 28.w,
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: TextStyle(
+                                color: _primary,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(name,
+                                style: TextStyle(
+                                    color: _textPrimary,
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                            if (subject.isNotEmpty)
+                              Text(subject,
+                                  style: TextStyle(
+                                      color: _textMuted, fontSize: 11.sp),
+                                  overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
+                      // Active/inactive dot (only if status field exists)
+                      if (hasStatus)
+                        Container(
+                          width: 7.w,
+                          height: 7.w,
+                          decoration: BoxDecoration(
+                            color: isActive ? _accentGreen : _textMuted,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ]),
                   );
                 }),
               ],
@@ -1891,10 +2515,12 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
                   if (v == null || v.isEmpty) {
                     _teacherName = '';
                   } else {
-                    final match = teachers.firstWhere((t) => t.id == v,
-                        orElse: () => teachers.first);
+                    final match = teachers.firstWhere(
+                          (t) => t.id == v,
+                      orElse: () => teachers.first,
+                    );
                     final td = match.data() as Map<String, dynamic>;
-                    _teacherName = td['name'] ?? '';
+                    _teacherName = td['name'] as String? ?? '';
                   }
                 });
               },
