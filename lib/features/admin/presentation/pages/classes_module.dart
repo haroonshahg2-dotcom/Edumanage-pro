@@ -100,7 +100,6 @@ class _ClassesModuleState extends State<ClassesModule>
   ];
 
   void _showBulkCreateDialog() {
-    // Local state inside dialog
     String _bulkGrade      = '1';
     List<String> _sections = ['A'];
     String _bulkShift      = 'Morning';
@@ -125,7 +124,6 @@ class _ClassesModuleState extends State<ClassesModule>
             for (final section in _sections) {
               final className = 'Grade $_bulkGrade$section';
               try {
-                // Check if already exists
                 final existing = await FirebaseFirestore.instance
                     .collection('schools')
                     .doc(widget.schoolId)
@@ -151,7 +149,7 @@ class _ClassesModuleState extends State<ClassesModule>
                   'shift':        _bulkShift,
                   'capacity':     _bulkCapacity,
                   'classTeacher': '',
-                  'teacherId':    '',
+                  'classTeacherId': '',
                   'subjects':     [],
                   'room':         '',
                   'createdAt':    FieldValue.serverTimestamp(),
@@ -187,7 +185,6 @@ class _ClassesModuleState extends State<ClassesModule>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Header ──────────────────────────────────────────────
                   Row(children: [
                     Container(
                       padding: EdgeInsets.all(10.w),
@@ -209,11 +206,9 @@ class _ClassesModuleState extends State<ClassesModule>
                                   color: _textPrimary,
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.w800)),
-                          Text(
-                            'Create multiple sections at once',
-                            style: TextStyle(
-                                color: _textSecondary, fontSize: 12.sp),
-                          ),
+                          Text('Create multiple sections at once',
+                              style: TextStyle(
+                                  color: _textSecondary, fontSize: 12.sp)),
                         ],
                       ),
                     ),
@@ -223,12 +218,10 @@ class _ClassesModuleState extends State<ClassesModule>
                           color: _textMuted, size: 22.sp),
                     ),
                   ]),
-
                   SizedBox(height: 24.h),
                   Divider(color: _border, height: 1),
                   SizedBox(height: 20.h),
 
-                  // ── Grade picker ─────────────────────────────────────────
                   Text('Grade',
                       style: TextStyle(
                           color: _textSecondary,
@@ -247,8 +240,6 @@ class _ClassesModuleState extends State<ClassesModule>
                         value: _bulkGrade,
                         isExpanded: true,
                         dropdownColor: _bgElevated,
-                        icon: Icon(Icons.keyboard_arrow_down_rounded,
-                            color: _textMuted),
                         items: _gradeOptions.map((g) => DropdownMenuItem(
                           value: g,
                           child: Text('Grade $g',
@@ -261,10 +252,8 @@ class _ClassesModuleState extends State<ClassesModule>
                       ),
                     ),
                   ),
-
                   SizedBox(height: 16.h),
 
-                  // ── Section selector ─────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -273,16 +262,13 @@ class _ClassesModuleState extends State<ClassesModule>
                               color: _textSecondary,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600)),
-                      Text(
-                        '${_sections.length} selected',
-                        style: TextStyle(color: _primary, fontSize: 12.sp),
-                      ),
+                      Text('${_sections.length} selected',
+                          style: TextStyle(color: _primary, fontSize: 12.sp)),
                     ],
                   ),
                   SizedBox(height: 8.h),
                   Wrap(
-                    spacing: 8.w,
-                    runSpacing: 8.h,
+                    spacing: 8.w, runSpacing: 8.h,
                     children: _sectionOptions.map((s) {
                       final selected = _sections.contains(s);
                       return GestureDetector(
@@ -298,8 +284,7 @@ class _ClassesModuleState extends State<ClassesModule>
                         }),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          width: 44.w,
-                          height: 44.w,
+                          width: 44.w, height: 44.w,
                           decoration: BoxDecoration(
                             gradient: selected
                                 ? const LinearGradient(
@@ -308,10 +293,7 @@ class _ClassesModuleState extends State<ClassesModule>
                             color: selected ? null : _bgElevated,
                             borderRadius: BorderRadius.circular(10.r),
                             border: Border.all(
-                              color: selected
-                                  ? Colors.transparent
-                                  : _border,
-                            ),
+                                color: selected ? Colors.transparent : _border),
                             boxShadow: selected
                                 ? [BoxShadow(
                                 color: _primary.withOpacity(0.30),
@@ -320,23 +302,19 @@ class _ClassesModuleState extends State<ClassesModule>
                                 : [],
                           ),
                           child: Center(
-                            child: Text(
-                              s,
-                              style: TextStyle(
-                                color: selected ? Colors.white : _textSecondary,
-                                fontSize: 15.sp,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                            child: Text(s,
+                                style: TextStyle(
+                                  color: selected ? Colors.white : _textSecondary,
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w800,
+                                )),
                           ),
                         ),
                       );
                     }).toList(),
                   ),
-
                   SizedBox(height: 16.h),
 
-                  // ── Shift ────────────────────────────────────────────────
                   Text('Shift',
                       style: TextStyle(
                           color: _textSecondary,
@@ -385,10 +363,8 @@ class _ClassesModuleState extends State<ClassesModule>
                       );
                     }).toList(),
                   ),
-
                   SizedBox(height: 16.h),
 
-                  // ── Capacity ─────────────────────────────────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -404,13 +380,11 @@ class _ClassesModuleState extends State<ClassesModule>
                           color: _primary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8.r),
                         ),
-                        child: Text(
-                          '$_bulkCapacity students',
-                          style: TextStyle(
-                              color: _primary,
-                              fontSize: 12.sp,
-                              fontWeight: FontWeight.w700),
-                        ),
+                        child: Text('$_bulkCapacity students',
+                            style: TextStyle(
+                                color: _primary,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ),
@@ -428,14 +402,11 @@ class _ClassesModuleState extends State<ClassesModule>
                       min: 10, max: 80, divisions: 14,
                       onChanged: _isCreating
                           ? null
-                          : (v) => setDialog(
-                              () => _bulkCapacity = v.round()),
+                          : (v) => setDialog(() => _bulkCapacity = v.round()),
                     ),
                   ),
-
                   SizedBox(height: 16.h),
 
-                  // ── Preview ──────────────────────────────────────────────
                   Container(
                     padding: EdgeInsets.all(14.w),
                     decoration: BoxDecoration(
@@ -446,15 +417,16 @@ class _ClassesModuleState extends State<ClassesModule>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Preview — ${_sections.length} class${_sections.length > 1 ? 'es' : ''} will be created',
-                            style: TextStyle(
-                                color: _textSecondary,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w600)),
+                        Text(
+                          'Preview — ${_sections.length} class${_sections.length > 1 ? 'es' : ''} will be created',
+                          style: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w600),
+                        ),
                         SizedBox(height: 8.h),
                         Wrap(
-                          spacing: 6.w,
-                          runSpacing: 6.h,
+                          spacing: 6.w, runSpacing: 6.h,
                           children: _sections.map((s) => Container(
                             padding: EdgeInsets.symmetric(
                                 horizontal: 10.w, vertical: 5.h),
@@ -477,7 +449,6 @@ class _ClassesModuleState extends State<ClassesModule>
                     ),
                   ),
 
-                  // ── Status message ───────────────────────────────────────
                   if (_status.isNotEmpty) ...[
                     SizedBox(height: 12.h),
                     Container(
@@ -500,10 +471,8 @@ class _ClassesModuleState extends State<ClassesModule>
                               fontSize: 12.sp)),
                     ),
                   ],
-
                   SizedBox(height: 20.h),
 
-                  // ── Actions ──────────────────────────────────────────────
                   Row(children: [
                     Expanded(
                       child: GestureDetector(
@@ -552,8 +521,7 @@ class _ClassesModuleState extends State<ClassesModule>
                           child: Center(
                             child: _isCreating
                                 ? SizedBox(
-                              width: 18.w,
-                              height: 18.w,
+                              width: 18.w, height: 18.w,
                               child: CircularProgressIndicator(
                                   color: Colors.white, strokeWidth: 2.5),
                             )
@@ -585,7 +553,6 @@ class _ClassesModuleState extends State<ClassesModule>
       ),
     );
   }
-
 
   @override
   void initState() {
@@ -710,7 +677,6 @@ class _ClassesModuleState extends State<ClassesModule>
                 ),
               ),
             ),
-
             widget.isMobile
                 ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -757,35 +723,12 @@ class _ClassesModuleState extends State<ClassesModule>
                 SizedBox(width: 10.w),
                 _sortButton(),
                 SizedBox(width: 10.w),
-                // ✅ Bulk Create button added
                 _secondaryButton('⚡ Bulk Create', _showBulkCreateDialog),
                 SizedBox(width: 10.w),
                 _primaryButton('+ Add Class', _openAddClassDialog),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _secondaryButton(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: _bgElevated,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: _border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: _textSecondary,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w600,
-          ),
         ),
       ),
     );
@@ -821,7 +764,7 @@ class _ClassesModuleState extends State<ClassesModule>
       children: [
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFFEEF1F8), _primaryLight],
+            colors: [_textPrimary, _primaryLight],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ).createShader(bounds),
@@ -862,12 +805,32 @@ class _ClassesModuleState extends State<ClassesModule>
                   color: color,
                   fontSize: 18.sp,
                   fontWeight: FontWeight.w800)),
-          Text(label,
-              style: TextStyle(color: _textMuted, fontSize: 10.sp)),
+          Text(label, style: TextStyle(color: _textMuted, fontSize: 10.sp)),
         ]),
       ]),
     );
   }
+
+  Widget _secondaryButton(String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          color: _bgElevated,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: _border),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+
 
 
   // ── Grade tabs ──────────────────────────────────────────────────────────────
@@ -1447,7 +1410,7 @@ class _ClassCardState extends State<_ClassCard> {
     final teacher  = d['classTeacher'] as String? ?? '';
     final capacity = d['capacity']     as int?    ?? 0;
     final shift    = d['shift']        as String? ?? '';
-    final subjects = (d['subjects'] as List?)?.length ?? 0;
+    final subjects = List<String>.from(d['subjects'] ?? []);
     final color    = _gradeColor(grade);
 
     return MouseRegion(
@@ -1478,7 +1441,6 @@ class _ClassCardState extends State<_ClassCard> {
             borderRadius: BorderRadius.circular(16.r),
             child: Stack(
               children: [
-                // ── Gradient top accent bar ──
                 Positioned(
                   top: 0, left: 0, right: 0,
                   child: Container(
@@ -1489,14 +1451,12 @@ class _ClassCardState extends State<_ClassCard> {
                     ),
                   ),
                 ),
-
                 Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,   // ✅ no more huge gap
+                    mainAxisSize: MainAxisSize.min, // ✅ no huge gap
                     children: [
-                      // ── Top row: badge + actions ──
                       Row(children: [
                         Container(
                           width: 50.w,
@@ -1515,7 +1475,6 @@ class _ClassCardState extends State<_ClassCard> {
                                 color: color.withOpacity(0.35), width: 1.5),
                           ),
                           child: Center(
-                            // ✅ shows grade number only, not full "10A"
                             child: Text(
                               grade.isNotEmpty ? grade : name,
                               style: TextStyle(
@@ -1559,20 +1518,14 @@ class _ClassCardState extends State<_ClassCard> {
                         _iconBtn(
                             Icons.delete_outline, _accentRed, widget.onDelete),
                       ]),
-
                       SizedBox(height: 12.h),
-
-                      // ── Chips: section + subjects ──
                       Wrap(spacing: 6.w, runSpacing: 6.h, children: [
                         if (section.isNotEmpty)
                           _chip('Section $section', _textMuted),
-                        _chip('$subjects subject${subjects == 1 ? '' : 's'}',
+                        _chip('${subjects.length} subject${subjects.length == 1 ? '' : 's'}',
                             _accentBlue),
                       ]),
-
                       SizedBox(height: 10.h),
-
-                      // ── Room & teacher — always show both, fallback text ──
                       _infoRow(
                         Icons.room_outlined,
                         room.isNotEmpty ? room : 'Room not assigned',
@@ -1584,12 +1537,9 @@ class _ClassCardState extends State<_ClassCard> {
                         teacher.isNotEmpty ? teacher : 'No teacher assigned',
                         dimmed: teacher.isEmpty,
                       ),
-
                       SizedBox(height: 14.h),
                       Divider(color: _border, height: 1),
                       SizedBox(height: 12.h),
-
-                      // ── Student count + progress ──
                       _buildStudentCountRow(capacity),
                     ],
                   ),
@@ -1989,19 +1939,39 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
 
   // Auto-generate class name
   void _autoName() {
-    if (_nameCtrl.text.isEmpty ||
-        _nameCtrl.text == '$_grade${_section}' ||
-        _nameCtrl.text.startsWith(_grade)) {
+    if (!_nameManuallyEdited) {
       setState(() => _nameCtrl.text = '$_grade$_section');
     }
   }
 
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+
     try {
+      final newName = _nameCtrl.text.trim().toUpperCase();
+
+      // ✅ Check for duplicate class name (skip check if editing same doc)
+      final dupCheck = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('classes')
+          .where('name', isEqualTo: newName)
+          .get();
+
+      final isDuplicate = dupCheck.docs.any((doc) =>
+      widget.existing == null || doc.id != widget.existing!.id);
+
+      if (isDuplicate) {
+        setState(() => _isSaving = false);
+        widget.showSnackBar(
+            'A class named "$newName" already exists.', isError: true);
+        return;
+      }
+
       final data = {
-        'name'           : _nameCtrl.text.trim().toUpperCase(),
+        'name'           : newName,
         'grade'          : _grade,
         'section'        : _section,
         'shift'          : _shift,
@@ -2262,6 +2232,8 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
     );
   }
 
+  bool _nameManuallyEdited = false; // ADD this field to _ClassFormDialogState
+
   Widget _classNameField() {
     return _labeledField(
       'Class Name *',
@@ -2269,8 +2241,11 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
         controller: _nameCtrl,
         style: TextStyle(color: _textPrimary, fontSize: 13.sp),
         textCapitalization: TextCapitalization.characters,
-        validator: (v) =>
-        (v == null || v.trim().isEmpty) ? 'Required' : null,
+        onChanged: (_) => _nameManuallyEdited = true, // ✅ tracks manual edits
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) return 'Required';
+          return null;
+        },
         decoration: _inputDecoration('e.g. 10A, KG-B'),
       ),
     );
@@ -2293,11 +2268,19 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
         SizedBox(
           width: 120.w,
           child: _labeledField(
-            'Capacity',
+            'Capacity *',
             TextFormField(
               controller: _capacityCtrl,
               style: TextStyle(color: _textPrimary, fontSize: 13.sp),
               keyboardType: TextInputType.number,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Required';
+                final n = int.tryParse(v.trim());
+                if (n == null) return 'Numbers only';
+                if (n <= 0) return 'Must be > 0';
+                if (n > 200) return 'Max 200';
+                return null;
+              },
               decoration: _inputDecoration('e.g. 40'),
             ),
           ),
@@ -2305,6 +2288,7 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
       ],
     );
   }
+
 
   Widget _shiftSelector() {
     return _labeledField(
@@ -2368,11 +2352,9 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
           .collection('schools')
           .doc(widget.schoolId)
           .collection('teachers')
-      // ✅ No status filter — shows all teachers regardless of status field
           .orderBy('name')
           .snapshots(),
       builder: (context, snap) {
-        // Loading
         if (!snap.hasData) {
           return Container(
             height: 48.h,
@@ -2383,8 +2365,7 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
             ),
             child: Center(
               child: SizedBox(
-                width: 16.w,
-                height: 16.w,
+                width: 16.w, height: 16.w,
                 child: CircularProgressIndicator(
                     color: _primary, strokeWidth: 2),
               ),
@@ -2393,8 +2374,6 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
         }
 
         final teachers = snap.data!.docs;
-
-        // Empty — but now shows helpful message with reason
         if (teachers.isEmpty) {
           return Container(
             padding: EdgeInsets.all(14.w),
@@ -2409,7 +2388,7 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
               SizedBox(width: 8.w),
               Expanded(
                 child: Text(
-                  'No teachers found — add teachers first to assign a class teacher.',
+                  'No teachers found — add teachers first.',
                   style: TextStyle(color: _accentAmber, fontSize: 12.sp),
                 ),
               ),
@@ -2417,7 +2396,6 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
           );
         }
 
-        // Dropdown
         return Container(
           padding: EdgeInsets.symmetric(horizontal: 14.w),
           decoration: BoxDecoration(
@@ -2431,14 +2409,9 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
               isExpanded: true,
               dropdownColor: _bgElevated,
               menuMaxHeight: 280.h,
-              hint: Text(
-                'Select class teacher (optional)',
-                style: TextStyle(color: _textMuted, fontSize: 13.sp),
-              ),
-              icon: Icon(Icons.keyboard_arrow_down_rounded,
-                  color: _textMuted, size: 20.sp),
+              hint: Text('Select class teacher (optional)',
+                  style: TextStyle(color: _textMuted, fontSize: 13.sp)),
               items: [
-                // None option
                 DropdownMenuItem<String>(
                   value: '',
                   child: Text('None — unassigned',
@@ -2449,63 +2422,11 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
                 ),
                 ...teachers.map((t) {
                   final td = t.data() as Map<String, dynamic>;
-                  final name       = td['name']       as String? ?? 'Unknown';
-                  final subject    = td['subject']    as String? ?? '';
-                  final hasStatus  = td.containsKey('status');
-                  final isActive   = td['status'] == 'active';
-
                   return DropdownMenuItem<String>(
                     value: t.id,
-                    child: Row(children: [
-                      // Avatar circle
-                      Container(
-                        width: 28.w,
-                        height: 28.w,
-                        decoration: BoxDecoration(
-                          color: _primary.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : '?',
-                            style: TextStyle(
-                                color: _primary,
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 10.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(name,
-                                style: TextStyle(
-                                    color: _textPrimary,
-                                    fontSize: 13.sp,
-                                    fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis),
-                            if (subject.isNotEmpty)
-                              Text(subject,
-                                  style: TextStyle(
-                                      color: _textMuted, fontSize: 11.sp),
-                                  overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                      // Active/inactive dot (only if status field exists)
-                      if (hasStatus)
-                        Container(
-                          width: 7.w,
-                          height: 7.w,
-                          decoration: BoxDecoration(
-                            color: isActive ? _accentGreen : _textMuted,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ]),
+                    child: Text(td['name'] ?? '',
+                        style: TextStyle(
+                            color: _textPrimary, fontSize: 13.sp)),
                   );
                 }),
               ],
@@ -2515,12 +2436,10 @@ class _ClassFormDialogState extends State<_ClassFormDialog> {
                   if (v == null || v.isEmpty) {
                     _teacherName = '';
                   } else {
-                    final match = teachers.firstWhere(
-                          (t) => t.id == v,
-                      orElse: () => teachers.first,
-                    );
+                    final match = teachers.firstWhere((t) => t.id == v,
+                        orElse: () => teachers.first);
                     final td = match.data() as Map<String, dynamic>;
-                    _teacherName = td['name'] as String? ?? '';
+                    _teacherName = td['name'] ?? '';
                   }
                 });
               },
