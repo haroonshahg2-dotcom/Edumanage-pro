@@ -34,20 +34,55 @@ const Color _textMuted = Color(0xFF5A6072);
 // ─── CATEGORY COLOUR MAP ────────────────────────────────────────────────────
 Color _categoryColor(String category) {
   final c = category.toLowerCase();
-  if (c.contains('science')) return _accentGreen;
-  if (c.contains('math')) return _accentBlue;
-  if (c.contains('art') || c.contains('music')) return _accentViolet;
-  if (c.contains('lang') || c.contains('english') || c.contains('urdu')) return _accentAmber;
-  if (c.contains('comp') || c.contains('tech')) return _primary;
-  if (c.contains('islam') || c.contains('relig')) return _accentRed;
-  return _accentBlue;
+  if (c.contains('science'))               return const Color(0xFF3DD68B);
+  if (c.contains('math'))                  return const Color(0xFF4DBEF7);
+  if (c.contains('art') || c.contains('music')) return const Color(0xFFB084F5);
+  if (c.contains('lang') || c.contains('english') || c.contains('urdu'))
+    return const Color(0xFFF2A93B);
+  if (c.contains('comp') || c.contains('tech') || c.contains('ict'))
+    return const Color(0xFF7C8CF0);
+  if (c.contains('islam') || c.contains('relig') || c.contains('quran'))
+    return const Color(0xFFF2657A);
+  if (c.contains('social') || c.contains('history') || c.contains('geo'))
+    return const Color(0xFF4DBEF7);
+  return const Color(0xFF7C8CF0);
 }
-
+IconData _iconForCategory(String category, String name) {
+  final c = (category + name).toLowerCase();
+  if (c.contains('math'))                  return Icons.calculate_rounded;
+  if (c.contains('physic'))                return Icons.bolt_rounded;
+  if (c.contains('chem'))                  return Icons.science_rounded;
+  if (c.contains('bio'))                   return Icons.eco_rounded;
+  if (c.contains('science'))               return Icons.biotech_rounded;
+  if (c.contains('english'))               return Icons.auto_stories_rounded;
+  if (c.contains('urdu'))                  return Icons.translate_rounded;
+  if (c.contains('lang'))                  return Icons.record_voice_over_rounded;
+  if (c.contains('comp') || c.contains('ict') || c.contains('tech'))
+    return Icons.computer_rounded;
+  if (c.contains('islam') || c.contains('quran') || c.contains('relig'))
+    return Icons.mosque_rounded;
+  if (c.contains('art') || c.contains('draw'))
+    return Icons.palette_rounded;
+  if (c.contains('music'))                 return Icons.music_note_rounded;
+  if (c.contains('sport') || c.contains('pt') || c.contains('physical'))
+    return Icons.sports_soccer_rounded;
+  if (c.contains('social') || c.contains('study'))
+    return Icons.public_rounded;
+  if (c.contains('history'))               return Icons.history_edu_rounded;
+  if (c.contains('geo'))                   return Icons.map_rounded;
+  if (c.contains('account') || c.contains('commerce'))
+    return Icons.account_balance_rounded;
+  return Icons.menu_book_rounded;
+}
 // ─── PREDEFINED CATEGORIES ────────────────────────────────────────────────────
 const List<String> _categories = [
   'All', 'Science', 'Mathematics', 'Languages',
-  'Computer', 'Arts', 'Islamiat', 'Social Studies', 'Other'
+  'Computer', 'Arts', 'Islamiat', 'Social Studies', 'Other',
 ];
+
+
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SubjectsModule — top-level widget
@@ -581,7 +616,8 @@ class _SubjectsModuleState extends State<SubjectsModule>
         crossAxisCount: crossCount,
         crossAxisSpacing: 16.w,
         mainAxisSpacing: 16.h,
-        childAspectRatio: widget.isMobile ? 1.5 : 1.25,
+        childAspectRatio: widget.isMobile ? 1.4 : (widget.isTablet ? 1.35 : 1.55),
+
       ),
       itemCount: docs.length,
       itemBuilder: (_, i) => _SubjectCard(
@@ -834,20 +870,22 @@ class _SubjectCardState extends State<_SubjectCard> {
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.doc.data() as Map<String, dynamic>;
-    final name = d['name'] as String? ?? '';
-    final code = d['code'] as String? ?? '';
+    final d        = widget.doc.data() as Map<String, dynamic>;
+    final name     = d['name'] as String? ?? '';
+    final code     = d['code'] as String? ?? '';
     final category = d['category'] as String? ?? 'Other';
+    final color    = _categoryColor(category);
+    final icon     = _iconForCategory(category, name);
     final createdAt = d['createdAt'] as Timestamp?;
-    final color = _categoryColor(category);
-
-    final dateStr = createdAt != null
-        ? "${createdAt.toDate().day.toString().padLeft(2, '0')}/${createdAt.toDate().month.toString().padLeft(2, '0')}/${createdAt.toDate().year}"
+    final dateStr  = createdAt != null
+        ? '${createdAt.toDate().day.toString().padLeft(2, '0')}/'
+        '${createdAt.toDate().month.toString().padLeft(2, '0')}/'
+        '${createdAt.toDate().year}'
         : '—';
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onExit:  (_) => setState(() => _hovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
@@ -858,108 +896,135 @@ class _SubjectCardState extends State<_SubjectCard> {
             width: _hovered ? 1.5 : 1,
           ),
           boxShadow: _hovered
-              ? [BoxShadow(
-              color: color.withOpacity(0.20),
-              blurRadius: 24,
-              offset: const Offset(0, 8))]
-              : [BoxShadow(
-              color: Colors.black.withOpacity(0.18),
-              blurRadius: 12,
-              offset: const Offset(0, 3))],
+              ? [BoxShadow(color: color.withOpacity(0.22),
+              blurRadius: 24, offset: const Offset(0, 8))]
+              : [BoxShadow(color: Colors.black.withOpacity(0.18),
+              blurRadius: 12, offset: const Offset(0, 3))],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16.r),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 0, left: 0, right: 0,
-                child: Container(
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                        colors: [color, color.withOpacity(0.4)]),
-                  ),
+          child: Stack(children: [
+            // ── Top accent bar ──────────────────────────────────────
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Container(
+                height: 3.h,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [color, color.withOpacity(0.35)]),
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(children: [
+            ),
+
+            Padding(
+              padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Icon + action buttons ───────────────────────
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Subject icon badge
                       Container(
-                        width: 50.w,
-                        height: 50.w,
+                        width: 50.w, height: 50.w,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              color.withOpacity(0.20),
-                              color.withOpacity(0.06),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          gradient: LinearGradient(colors: [
+                            color.withOpacity(0.18),
+                            color.withOpacity(0.06),
+                          ], begin: Alignment.topLeft,
+                              end: Alignment.bottomRight),
                           borderRadius: BorderRadius.circular(13.r),
                           border: Border.all(
-                              color: color.withOpacity(0.35), width: 1.5),
+                              color: color.withOpacity(0.3), width: 1.5),
                         ),
                         child: Center(
-                          child: Text(
-                            name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-                            style: TextStyle(
-                              color: color,
-                              fontSize: 20.sp,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
+                          child: Icon(icon, color: color, size: 22.sp),
                         ),
                       ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: TextStyle(
-                                color: _textPrimary,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            SizedBox(height: 3.h),
-                            Text(
-                              category,
-                              style: TextStyle(
-                                color: color,
-                                fontSize: 11.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const Spacer(),
+                      // Edit + delete
                       _iconBtn(Icons.edit_outlined, _primary, widget.onEdit),
                       SizedBox(width: 6.w),
-                      _iconBtn(
-                          Icons.delete_outline, _accentRed, widget.onDelete),
+                      _iconBtn(Icons.delete_outline, _accentRed, widget.onDelete),
+                    ],
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // ── Name ────────────────────────────────────────
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: _textPrimary,
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  SizedBox(height: 4.h),
+
+                  // ── Category chip ────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(icon, color: color, size: 10.sp),
+                      SizedBox(width: 4.w),
+                      Text(category,
+                          style: TextStyle(
+                              color: color, fontSize: 10.sp,
+                              fontWeight: FontWeight.w700)),
                     ]),
-                    SizedBox(height: 12.h),
-                    Wrap(spacing: 6.w, runSpacing: 6.h, children: [
-                      _chip(code, _textMuted),
-                      _chip('Added $dateStr', _textMuted),
-                    ]),
-                    SizedBox(height: 14.h),
-                    Divider(color: _border, height: 1),
-                    SizedBox(height: 12.h),
-                    _buildStudentUsageRow(name),
-                  ],
-                ),
+                  ),
+                  SizedBox(height: 12.h),
+                  Divider(color: _border, height: 1),
+                  SizedBox(height: 10.h),
+
+                  // ── Footer: code + date ─────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Code badge
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
+                        decoration: BoxDecoration(
+                          color: _accentGreen.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(6.r),
+                          border: Border.all(
+                              color: _accentGreen.withOpacity(0.2)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.qr_code_2_rounded,
+                              color: _accentGreen, size: 11.sp),
+                          SizedBox(width: 4.w),
+                          Text(code,
+                              style: TextStyle(
+                                  color: _accentGreen,
+                                  fontSize: 11.sp,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5)),
+                        ]),
+                      ),
+                      // Date added
+                      Text(
+                        'Added $dateStr',
+                        style: TextStyle(
+                            color: _textMuted, fontSize: 10.sp),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
@@ -1188,6 +1253,7 @@ class _SubjectFormDialog extends StatefulWidget {
   final QueryDocumentSnapshot? existing;
   final void Function(String, {bool isError}) showSnackBar;
 
+
   const _SubjectFormDialog({
     required this.schoolId,
     required this.existing,
@@ -1201,10 +1267,14 @@ class _SubjectFormDialog extends StatefulWidget {
 class _SubjectFormDialogState extends State<_SubjectFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
+
+
+
   final _nameCtrl = TextEditingController();
   String _category = 'Science';
   String _autoCode = '';
   bool _isSaving = false;
+  final _descCtrl = TextEditingController(); // ← ADD THIS
 
   final List<String> _categoryOptions = [
     'Science', 'Mathematics', 'Languages', 'Computer',
@@ -1217,6 +1287,7 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
     if (widget.existing != null) {
       final d = widget.existing!.data() as Map<String, dynamic>;
       _nameCtrl.text = d['name'] ?? '';
+      _descCtrl.text = d['description'] ?? '';
       _category = d['category'] ?? 'Science';
       _autoCode = d['code'] ?? '';
     } else {
@@ -1230,17 +1301,34 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
         .doc(widget.schoolId)
         .collection('subjects');
 
-    final snapshot = await subjectsRef.get();
-    final count = snapshot.docs.length + 1;
-    final code = 'SUB-${count.toString().padLeft(3, '0')}';
+    // Extract letters only from category name (or subject name if category empty)
+    final src = (_category.isNotEmpty && _category != 'Other')
+        ? _category.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '')
+        : (_nameCtrl.text.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), ''));
 
-    final existing = await subjectsRef.where('code', isEqualTo: code).get();
-    if (existing.docs.isNotEmpty) {
-      setState(() => _autoCode =
-      'SUB-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}');
-    } else {
-      setState(() => _autoCode = code);
+    // Base = first 3 letters of category (e.g. SCI, MAT, ENG, COM, ISL)
+    final base = src.length >= 3 ? src.substring(0, 3) : src.padRight(3, 'X');
+
+    // Find all existing codes starting with same base
+    final snapshot = await subjectsRef
+        .where('code', isGreaterThanOrEqualTo: base)
+        .where('code', isLessThan: '${base}z')
+        .get();
+
+    int maxSeq = 0;
+    for (final doc in snapshot.docs) {
+      final d = doc.data() as Map<String, dynamic>;
+      final code = (d['code'] ?? '').toString();
+      if (code.startsWith(base)) {
+        final seqStr = code.substring(base.length);
+        final seq = int.tryParse(seqStr) ?? 0;
+        if (seq > maxSeq) maxSeq = seq;
+      }
     }
+
+    final nextSeq = (maxSeq + 1).toString().padLeft(2, '0');
+    if (mounted) setState(() => _autoCode = '$base$nextSeq');
+    // Examples: SCI01, SCI02, MAT01, ENG01, COM01, ISL01, ART01
   }
 
   Future<void> _save() async {
@@ -1269,9 +1357,10 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
       }
 
       final data = {
-        'name': name,
-        'category': _category,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'name':        name,
+        'category':    _category,
+        'description': _descCtrl.text.trim(),
+        'updatedAt':   FieldValue.serverTimestamp(),
       };
 
       if (widget.existing == null) {
@@ -1299,6 +1388,7 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _descCtrl.dispose();
     super.dispose();
   }
 
@@ -1342,7 +1432,19 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
                       SizedBox(height: 16.h),
                       _categorySelector(),
                       SizedBox(height: 20.h),
-
+                      SizedBox(height: 16.h),
+                      _labeledField(
+                        'Description (optional)',
+                        TextFormField(
+                          controller: _descCtrl,
+                          maxLines: 2,
+                          style: TextStyle(
+                              color: _textPrimary, fontSize: 13.sp),
+                          decoration: _inputDecoration(
+                            'e.g. Covers algebra, geometry for Class 9–10',
+                          ),
+                        ),
+                      ),
                       if (!isEdit) ...[
                         _sectionLabel('Auto-Generated Code'),
                         SizedBox(height: 12.h),
@@ -1474,33 +1576,57 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
   Widget _categorySelector() {
     return _labeledField(
       'Category *',
-      Container(
-        padding: EdgeInsets.symmetric(horizontal: 14.w),
-        decoration: BoxDecoration(
-          color: _bgElevated,
-          borderRadius: BorderRadius.circular(10.r),
-          border: Border.all(color: _border),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: _category,
-            isExpanded: true,
-            dropdownColor: _bgElevated,
-            style: TextStyle(color: _textPrimary, fontSize: 13.sp),
-            items: _categoryOptions
-                .map((c) => DropdownMenuItem(
-              value: c,
-              child: Text(c,
+      Wrap(
+        spacing: 8.w,
+        runSpacing: 8.h,
+        children: _categoryOptions.map((cat) {
+          final isSelected = _category == cat;
+          final color = _categoryColor(cat);
+          return GestureDetector(
+            onTap: () {
+              setState(() => _category = cat);
+              // Regenerate code when category changes (for new subjects)
+              if (widget.existing == null) _generateCode();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withOpacity(0.15) : _bgElevated,
+                borderRadius: BorderRadius.circular(8.r),
+                border: Border.all(
+                  color: isSelected ? color : _border,
+                  width: isSelected ? 1.5 : 1,
+                ),
+                boxShadow: isSelected
+                    ? [BoxShadow(
+                    color: color.withOpacity(0.25),
+                    blurRadius: 8, offset: const Offset(0, 3))]
+                    : null,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(
+                  _iconForCategory(cat, ''),
+                  color: isSelected ? color : _textMuted,
+                  size: 14.sp,
+                ),
+                SizedBox(width: 5.w),
+                Text(
+                  cat,
                   style: TextStyle(
-                      color: _textPrimary, fontSize: 13.sp)),
-            ))
-                .toList(),
-            onChanged: (v) => setState(() => _category = v!),
-          ),
-        ),
+                    color: isSelected ? color : _textSecondary,
+                    fontSize: 12.sp,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ]),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
+
 
   Widget _codeDisplay() {
     return Container(
