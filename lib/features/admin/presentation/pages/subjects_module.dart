@@ -1,12 +1,30 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// subjects_module.dart
+// lib/features/admin/presentation/pages/subjects_module.dart
+//
+// Subjects Management Module — EduManage Pro
+// Visual identity: table-first, department-grouped, curriculum-focused.
+// Deliberately different from ClassesModule (card/grid) in every way.
+//
 // Firestore Path:
-// schools/{schoolId}/subjects/{subjectId}
+//   schools/{schoolId}/subjects/{subjectId}
 //
 // Document fields:
-// name     String  e.g. "Mathematics"
-// code     String  e.g. "SUB-001" (auto-generated)
-// category String  e.g. "Science", "Arts", "Languages"
-// createdAt Timestamp
-// updatedAt Timestamp
+//   name          String   e.g. "Mathematics"
+//   code          String   e.g. "MATH-10"
+//   department    String   e.g. "Science", "Languages"
+//   type          String   "Core" | "Elective" | "Lab" | "Co-curricular"
+//   grades        List     grades this subject is taught in e.g. ["9","10"]
+//   weeklyPeriods int      periods per week
+//   creditHours   int
+//   passMark      int      e.g. 50
+//   totalMarks    int      e.g. 100
+//   description   String
+//   assignedTeacherId   String (optional)
+//   assignedTeacherName String (optional)
+//   isActive      bool
+//   createdAt     Timestamp
+//   updatedAt     Timestamp
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -14,78 +32,69 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shimmer/shimmer.dart';
 
-// ─── COLOUR PALETTE (mirrors ClassesModule exactly) ─────────────────────────
-const Color _bgDark = Color(0xFF0F1117);
-const Color _bgCard = Color(0xFF161922);
-const Color _bgElevated = Color(0xFF1E212E);
-const Color _border = Color(0xFF2A2E3B);
-const Color _borderLight = Color(0xFF353A4A);
-const Color _primary = Color(0xFF7C8CF0);
-const Color _primaryLight = Color(0xFF9AA5F3);
-const Color _accentGreen = Color(0xFF3DD68B);
-const Color _accentAmber = Color(0xFFF2A93B);
-const Color _accentRed = Color(0xFFF2657A);
-const Color _accentBlue = Color(0xFF4DBEF7);
-const Color _accentViolet = Color(0xFFB084F5);
-const Color _textPrimary = Color(0xFFEEF1F8);
-const Color _textSecondary = Color(0xFF8B92A8);
-const Color _textMuted = Color(0xFF5A6072);
+// ─── COLOUR TOKENS (same palette as dashboard) ────────────────────────────────
+const Color _bgDark      = Color(0xFF0B0F19);
+const Color _bgCard      = Color(0xFF151B2B);
+const Color _bgElevated  = Color(0xFF1E2538);
+const Color _bgHover     = Color(0xFF242B40);
+const Color _border      = Color(0xFF2D3748);
+const Color _primary     = Color(0xFF6366F1);
+const Color _primaryLight= Color(0xFF818CF8);
+const Color _green       = Color(0xFF22C55E);
+const Color _amber       = Color(0xFFF59E0B);
+const Color _red         = Color(0xFFEF4444);
+const Color _blue        = Color(0xFF3B82F6);
+const Color _violet      = Color(0xFFA855F7);
+const Color _teal        = Color(0xFF14B8A6);
+const Color _rose        = Color(0xFFF43F5E);
+const Color _textPrimary = Color(0xFFF8FAFC);
+const Color _textSecondary=Color(0xFF94A3B8);
+const Color _textMuted   = Color(0xFF64748B);
 
-// ─── CATEGORY COLOUR MAP ────────────────────────────────────────────────────
-Color _categoryColor(String category) {
-  final c = category.toLowerCase();
-  if (c.contains('science'))               return const Color(0xFF3DD68B);
-  if (c.contains('math'))                  return const Color(0xFF4DBEF7);
-  if (c.contains('art') || c.contains('music')) return const Color(0xFFB084F5);
-  if (c.contains('lang') || c.contains('english') || c.contains('urdu'))
-    return const Color(0xFFF2A93B);
-  if (c.contains('comp') || c.contains('tech') || c.contains('ict'))
-    return const Color(0xFF7C8CF0);
-  if (c.contains('islam') || c.contains('relig') || c.contains('quran'))
-    return const Color(0xFFF2657A);
-  if (c.contains('social') || c.contains('history') || c.contains('geo'))
-    return const Color(0xFF4DBEF7);
-  return const Color(0xFF7C8CF0);
+// ─── DEPARTMENT CONFIG ────────────────────────────────────────────────────────
+class _Dept {
+  final String name;
+  final Color color;
+  final IconData icon;
+  const _Dept(this.name, this.color, this.icon);
 }
-IconData _iconForCategory(String category, String name) {
-  final c = (category + name).toLowerCase();
-  if (c.contains('math'))                  return Icons.calculate_rounded;
-  if (c.contains('physic'))                return Icons.bolt_rounded;
-  if (c.contains('chem'))                  return Icons.science_rounded;
-  if (c.contains('bio'))                   return Icons.eco_rounded;
-  if (c.contains('science'))               return Icons.biotech_rounded;
-  if (c.contains('english'))               return Icons.auto_stories_rounded;
-  if (c.contains('urdu'))                  return Icons.translate_rounded;
-  if (c.contains('lang'))                  return Icons.record_voice_over_rounded;
-  if (c.contains('comp') || c.contains('ict') || c.contains('tech'))
-    return Icons.computer_rounded;
-  if (c.contains('islam') || c.contains('quran') || c.contains('relig'))
-    return Icons.mosque_rounded;
-  if (c.contains('art') || c.contains('draw'))
-    return Icons.palette_rounded;
-  if (c.contains('music'))                 return Icons.music_note_rounded;
-  if (c.contains('sport') || c.contains('pt') || c.contains('physical'))
-    return Icons.sports_soccer_rounded;
-  if (c.contains('social') || c.contains('study'))
-    return Icons.public_rounded;
-  if (c.contains('history'))               return Icons.history_edu_rounded;
-  if (c.contains('geo'))                   return Icons.map_rounded;
-  if (c.contains('account') || c.contains('commerce'))
-    return Icons.account_balance_rounded;
-  return Icons.menu_book_rounded;
-}
-// ─── PREDEFINED CATEGORIES ────────────────────────────────────────────────────
-const List<String> _categories = [
-  'All', 'Science', 'Mathematics', 'Languages',
-  'Computer', 'Arts', 'Islamiat', 'Social Studies', 'Other',
+
+const List<_Dept> _departments = [
+  _Dept('Science',        _blue,   Icons.science_outlined),
+  _Dept('Mathematics',    _primary,Icons.calculate_outlined),
+  _Dept('Languages',      _green,  Icons.translate_outlined),
+  _Dept('Social Studies', _amber,  Icons.public_outlined),
+  _Dept('Arts',           _violet, Icons.palette_outlined),
+  _Dept('Physical Ed.',   _teal,   Icons.sports_outlined),
+  _Dept('Computer',       _rose,   Icons.computer_outlined),
+  _Dept('Religious',      _red,    Icons.menu_book_outlined),
+  _Dept('Other',          _textMuted, Icons.folder_outlined),
 ];
 
+_Dept _deptFor(String name) =>
+    _departments.firstWhere((d) => d.name == name,
+        orElse: () => _departments.last);
 
+// ─── SUBJECT TYPE CONFIG ──────────────────────────────────────────────────────
+class _TypeConfig {
+  final String label;
+  final Color color;
+  final IconData icon;
+  const _TypeConfig(this.label, this.color, this.icon);
+}
 
+const Map<String, _TypeConfig> _typeConfigs = {
+  'Core'         : _TypeConfig('Core',          _primary, Icons.star_outlined),
+  'Elective'     : _TypeConfig('Elective',       _green,   Icons.tune_outlined),
+  'Lab'          : _TypeConfig('Lab',            _amber,   Icons.biotech_outlined),
+  'Co-curricular': _TypeConfig('Co-curricular',  _violet,  Icons.emoji_events_outlined),
+};
 
+_TypeConfig _typeFor(String t) =>
+    _typeConfigs[t] ?? const _TypeConfig('Core', _primary, Icons.star_outlined);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SubjectsModule — top-level widget
+// SubjectsModule
 // ─────────────────────────────────────────────────────────────────────────────
 class SubjectsModule extends StatefulWidget {
   final String schoolId;
@@ -113,28 +122,40 @@ class _SubjectsModuleState extends State<SubjectsModule>
     with SingleTickerProviderStateMixin {
 
   // ── View state ──────────────────────────────────────────────────────────────
-  String _viewMode = 'grid';
-  String _searchQuery = '';
-  String? _filterCategory;
-  String _sortBy = 'name'; // 'name' | 'code' | 'createdAt'
+  String  _searchQuery    = '';
+  String? _filterDept;
+  String? _filterType;
+  String? _filterGrade;
+  bool    _showInactive   = false;
+  String  _sortBy         = 'name'; // 'name' | 'dept' | 'periods' | 'code'
 
-  // ── Tab controller for category tabs ────────────────────────────────────────
+  // Tab: department filter via TabBar
   late TabController _tabController;
 
-  // ── Category list with "All" at index 0 ─────────────────────────────────────
-  late final List<String> _categoryTabs;
+  final List<String> _deptTabs = [
+    'All',
+    ..._departments.map((d) => d.name),
+  ];
+
+  // ── Firestore ───────────────────────────────────────────────────────────────
+  Stream<QuerySnapshot> get _stream => FirebaseFirestore.instance
+      .collection('schools')
+      .doc(widget.schoolId)
+      .collection('subjects')
+      .orderBy('name')
+      .snapshots();
 
   @override
   void initState() {
     super.initState();
-    _categoryTabs = _categories;
-    _tabController = TabController(length: _categoryTabs.length, vsync: this);
+    _tabController =
+        TabController(length: _deptTabs.length, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
-          _filterCategory = _categoryTabs[_tabController.index] == 'All'
+          _filterDept = _tabController.index == 0
               ? null
-              : _categoryTabs[_tabController.index];
+              : _deptTabs[_tabController.index];
         });
       }
     });
@@ -146,71 +167,58 @@ class _SubjectsModuleState extends State<SubjectsModule>
     super.dispose();
   }
 
-  // ── Firestore stream ────────────────────────────────────────────────────────
-  Stream<QuerySnapshot> get _subjectStream => FirebaseFirestore.instance
-      .collection('schools')
-      .doc(widget.schoolId)
-      .collection('subjects')
-      .orderBy('createdAt', descending: false)
-      .snapshots();
-
-  // ── Filter + sort logic ─────────────────────────────────────────────────────
-  List<QueryDocumentSnapshot> _applyFilters(List<QueryDocumentSnapshot> docs) {
-    var list = docs.where((doc) {
+  // ── Filter + sort ────────────────────────────────────────────────────────────
+  List<QueryDocumentSnapshot> _filtered(List<QueryDocumentSnapshot> all) {
+    var list = all.where((doc) {
       final d = doc.data() as Map<String, dynamic>;
-      final name = (d['name'] ?? '').toString().toLowerCase();
-      final code = (d['code'] ?? '').toString().toLowerCase();
-      final category = (d['category'] ?? 'Other').toString();
 
+      // Active filter
+      final isActive = d['isActive'] as bool? ?? true;
+      if (!_showInactive && !isActive) return false;
+
+      // Search
       final q = _searchQuery.toLowerCase();
       final matchSearch = q.isEmpty ||
-          name.contains(q) ||
-          code.contains(q);
+          (d['name']   ?? '').toString().toLowerCase().contains(q) ||
+          (d['code']   ?? '').toString().toLowerCase().contains(q) ||
+          (d['department'] ?? '').toString().toLowerCase().contains(q) ||
+          (d['assignedTeacherName'] ?? '').toString().toLowerCase().contains(q);
 
-      final matchCategory = _filterCategory == null ||
-          category == _filterCategory ||
-          (_filterCategory == 'Other' && !_categories.sublist(1).contains(category));
+      // Department tab
+      final matchDept = _filterDept == null ||
+          (d['department'] ?? '') == _filterDept;
 
-      return matchSearch && matchCategory;
+      // Type filter
+      final matchType = _filterType == null ||
+          (d['type'] ?? '') == _filterType;
+
+      // Grade filter
+      final grades = List<String>.from(d['grades'] ?? []);
+      final matchGrade = _filterGrade == null ||
+          grades.contains(_filterGrade);
+
+      return matchSearch && matchDept && matchType && matchGrade;
     }).toList();
 
     list.sort((a, b) {
       final da = a.data() as Map<String, dynamic>;
       final db = b.data() as Map<String, dynamic>;
       switch (_sortBy) {
+        case 'dept':
+          return (da['department'] ?? '').compareTo(db['department'] ?? '');
+        case 'periods':
+          return (db['weeklyPeriods'] ?? 0)
+              .compareTo(da['weeklyPeriods'] ?? 0);
         case 'code':
-          return (da['code'] ?? '').toString().compareTo((db['code'] ?? '').toString());
-        case 'createdAt':
-          final ta = da['createdAt'] as Timestamp?;
-          final tb = db['createdAt'] as Timestamp?;
-          if (ta == null || tb == null) return 0;
-          return tb.compareTo(ta); // newest first
-        default: // 'name'
-          return (da['name'] ?? '').toString().compareTo((db['name'] ?? '').toString());
+          return (da['code'] ?? '').compareTo(db['code'] ?? '');
+        default:
+          return (da['name'] ?? '').compareTo(db['name'] ?? '');
       }
     });
     return list;
   }
 
-  // ── Auto-generate subject code ──────────────────────────────────────────────
-  Future<String> _generateSubjectCode() async {
-    final subjectsRef = FirebaseFirestore.instance
-        .collection('schools')
-        .doc(widget.schoolId)
-        .collection('subjects');
-
-    final snapshot = await subjectsRef.get();
-    final count = snapshot.docs.length + 1;
-    final code = 'SUB-${count.toString().padLeft(3, '0')}';
-
-    final existing = await subjectsRef.where('code', isEqualTo: code).get();
-    if (existing.docs.isNotEmpty) {
-      return 'SUB-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-    }
-    return code;
-  }
-
-  // ── Build ───────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -218,441 +226,535 @@ class _SubjectsModuleState extends State<SubjectsModule>
       children: [
         _buildHeader(),
         SizedBox(height: 20.h),
-        _buildCategoryTabs(),
-        SizedBox(height: 16.h),
-        _buildSearchBar(),
+        _buildDeptTabs(),
+        SizedBox(height: 14.h),
+        _buildToolbar(),
         SizedBox(height: 16.h),
         Expanded(child: _buildBody()),
       ],
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────────
+  // ── Header ───────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20.r),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(widget.isMobile ? 18.w : 24.w),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [_primary.withOpacity(0.15), _bgCard],
-          ),
-          border: Border.all(color: _primary.withOpacity(0.22)),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -28.h, right: -16.w,
-              child: Container(
-                width: 120.w, height: 120.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _primary.withOpacity(0.09),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -36.h, right: 60.w,
-              child: Container(
-                width: 90.w, height: 90.w,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _accentBlue.withOpacity(0.06),
-                ),
-              ),
-            ),
-            widget.isMobile
-                ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  _headerIconBadge(),
-                  SizedBox(width: 14.w),
-                  Expanded(child: _headerTitleBlock()),
-                ]),
-                SizedBox(height: 16.h),
-                Row(children: [
-                  Expanded(
-                    flex: 2,
-                    child: _primaryButton('+ Add Subject', _openAddSubjectDialog),
-                  ),
-                ]),
-              ],
-            )
-                : Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _headerIconBadge(),
-                SizedBox(width: 18.w),
-                Expanded(child: _headerTitleBlock()),
-                StreamBuilder(
-                  stream: _subjectStream,
-                  builder: (context, snap) {
-                    final total = snap.data?.docs.length ?? 0;
-                    return Row(children: [
-                      _headerStatPill(Icons.menu_book_outlined, '$total',
-                          'Subjects', _primary),
-                      SizedBox(width: 8.w),
-                    ]);
-                  },
-                ),
-                SizedBox(width: 12.w),
-                _viewToggle(),
-                SizedBox(width: 10.w),
-                _sortButton(),
-                SizedBox(width: 10.w),
-                _primaryButton('+ Add Subject', _openAddSubjectDialog),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return widget.isMobile
+        ? Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _titleBlock(),
+        SizedBox(height: 14.h),
+        _addBtn(fullWidth: true),
+      ],
+    )
+        : Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(child: _titleBlock()),
+        _statsStrip(),
+        SizedBox(width: 16.w),
+        _addBtn(),
+      ],
     );
   }
 
-  Widget _headerIconBadge() {
-    return Container(
-      padding: EdgeInsets.all(widget.isMobile ? 12.w : 14.w),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_primary, _primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: _primary.withOpacity(0.38),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Icon(Icons.menu_book_rounded,
-          color: Colors.white,
-          size: widget.isMobile ? 24.sp : 28.sp),
-    );
-  }
-
-  Widget _headerTitleBlock() {
+  Widget _titleBlock() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [_textPrimary, _primaryLight],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ).createShader(bounds),
-          child: Text(
-            'Subject Management',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: widget.isMobile ? 22.sp : 26.sp,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
+        Row(
+          children: [
+            Container(
+              width: 4.w,
+              height: 28.h,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_primary, _teal],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(2.r),
+              ),
             ),
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Text(
-          'Create, organise and manage school subjects',
-          style: TextStyle(color: _textSecondary, fontSize: 13.sp),
-        ),
-      ],
-    );
-  }
-
-  Widget _headerStatPill(
-      IconData icon, String value, String label, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(children: [
-        Icon(icon, color: color, size: 16.sp),
-        SizedBox(width: 8.w),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value,
+            SizedBox(width: 12.w),
+            Text(
+              'Curriculum & Subjects',
               style: TextStyle(
-                  color: color,
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w800)),
-          Text(label, style: TextStyle(color: _textMuted, fontSize: 10.sp)),
-        ]),
-      ]),
-    );
-  }
-
-  // ── Category tabs ───────────────────────────────────────────────────────────
-  Widget _buildCategoryTabs() {
-    return Container(
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        color: _bgCard,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: _border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        physics: const BouncingScrollPhysics(),
-        dividerColor: Colors.transparent,
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicator: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [_primary, _primaryLight],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(9.r),
-          boxShadow: [
-            BoxShadow(
-              color: _primary.withOpacity(0.28),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+                color: _textPrimary,
+                fontSize: widget.isMobile ? 20.sp : 24.sp,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
             ),
           ],
         ),
-        labelColor: Colors.white,
-        unselectedLabelColor: _textSecondary,
-        labelStyle:
-        TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w700),
-        unselectedLabelStyle:
-        TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500),
-        tabs: _categoryTabs
-            .map((c) => Tab(
-          height: 36.h,
-          text: c,
-        ))
-            .toList(),
-      ),
+        SizedBox(height: 4.h),
+        Padding(
+          padding: EdgeInsets.only(left: 16.w),
+          child: Text(
+            'Define the academic curriculum, departments and subject catalogue',
+            style: TextStyle(color: _textSecondary, fontSize: 12.sp),
+          ),
+        ),
+      ],
     );
   }
 
-  // ── Search bar ──────────────────────────────────────────────────────────────
-  Widget _buildSearchBar() {
-    return Row(children: [
-      Expanded(
-        child: Container(
-          height: 46.h,
-          decoration: BoxDecoration(
-            color: _bgCard,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: _border),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.12),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: TextField(
-            onChanged: (v) => setState(() => _searchQuery = v),
-            style: TextStyle(color: _textPrimary, fontSize: 13.sp),
-            decoration: InputDecoration(
-              hintText: 'Search subject name, code…',
-              hintStyle: TextStyle(color: _textMuted, fontSize: 13.sp),
-              prefixIcon: Icon(Icons.search_rounded,
-                  color: _textMuted, size: 20.sp),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? GestureDetector(
-                onTap: () => setState(() => _searchQuery = ''),
-                child: Icon(Icons.clear_rounded,
-                    color: _textMuted, size: 18.sp),
-              )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 13.h),
-            ),
-          ),
-        ),
-      ),
-      if (!widget.isMobile) ...[
-        SizedBox(width: 10.w),
-        _viewToggle(),
-      ],
-    ]);
+  Widget _statsStrip() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _stream,
+      builder: (_, snap) {
+        final docs = snap.data?.docs ?? [];
+        final active = docs
+            .where((d) => (d.data() as Map<String, dynamic>)['isActive'] != false)
+            .length;
+        final depts = docs
+            .map((d) => (d.data() as Map<String, dynamic>)['department'])
+            .toSet()
+            .length;
+        return Row(
+          children: [
+            _statPill(Icons.menu_book_outlined, '$active', 'subjects', _primary),
+            SizedBox(width: 8.w),
+            _statPill(Icons.account_tree_outlined, '$depts', 'depts', _teal),
+          ],
+        );
+      },
+    );
   }
 
-  Widget _viewToggle() {
+  Widget _statPill(IconData icon, String value, String label, Color color) {
     return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: _bgCard,
+        color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: _border),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _viewToggleBtn(Icons.grid_view_rounded, 'grid'),
-          _viewToggleBtn(Icons.format_list_bulleted_rounded, 'list'),
+          Icon(icon, color: color, size: 14.sp),
+          SizedBox(width: 6.w),
+          Text(
+            value,
+            style: TextStyle(
+              color: _textPrimary,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          SizedBox(width: 4.w),
+          Text(
+            label,
+            style: TextStyle(color: _textSecondary, fontSize: 11.sp),
+          ),
         ],
       ),
     );
   }
 
-  Widget _viewToggleBtn(IconData icon, String mode) {
-    final active = _viewMode == mode;
-    return GestureDetector(
-      onTap: () => setState(() => _viewMode = mode),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 38.w,
-        height: 38.h,
-        decoration: BoxDecoration(
-          color: active ? _primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(8.r),
-        ),
-        child: Icon(icon,
-            color: active ? Colors.white : _textMuted, size: 18.sp),
+  // ── Department tab bar ────────────────────────────────────────────────────────
+  Widget _buildDeptTabs() {
+    return SizedBox(
+      height: 36.h,
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        dividerColor: Colors.transparent,
+        tabAlignment: TabAlignment.start,
+        padding: EdgeInsets.zero,
+        labelPadding: EdgeInsets.only(right: 4.w),
+        indicator: const BoxDecoration(), // custom below
+        tabs: List.generate(_deptTabs.length, (i) {
+          final isAll = i == 0;
+          final dept = isAll ? null : _deptFor(_deptTabs[i]);
+          return _DeptTab(
+            label: isAll ? 'All subjects' : _deptTabs[i],
+            color: isAll ? _primary : dept!.color,
+            icon: isAll ? Icons.apps_rounded : dept!.icon,
+            isSelected: _tabController.index == i,
+            controller: _tabController,
+            index: i,
+          );
+        }),
       ),
     );
   }
 
-  Widget _sortButton() {
-    return PopupMenuButton(
+  // ── Toolbar: search + filters ─────────────────────────────────────────────────
+  Widget _buildToolbar() {
+    return widget.isMobile
+        ? Column(
+      children: [
+        _searchField(),
+        SizedBox(height: 10.h),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: _filterChips()),
+        ),
+      ],
+    )
+        : Row(
+      children: [
+        SizedBox(width: 260.w, child: _searchField()),
+        SizedBox(width: 12.w),
+        ..._filterChips().map((c) => Padding(
+          padding: EdgeInsets.only(right: 8.w),
+          child: c,
+        )),
+        const Spacer(),
+        _sortDropdown(),
+        SizedBox(width: 10.w),
+        _inactiveToggle(),
+      ],
+    );
+  }
+
+  Widget _searchField() {
+    return Container(
+      height: 40.h,
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: _border),
+      ),
+      child: TextField(
+        onChanged: (v) => setState(() => _searchQuery = v),
+        style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+        decoration: InputDecoration(
+          hintText: 'Search subjects…',
+          hintStyle: TextStyle(color: _textMuted, fontSize: 13.sp),
+          prefixIcon: Icon(Icons.search, color: _textMuted, size: 16.sp),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 10.h),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _filterChips() => [
+    _FilterChip(
+      label: _filterType ?? 'Type',
+      isActive: _filterType != null,
+      onTap: _showTypeFilter,
+    ),
+    _FilterChip(
+      label: _filterGrade != null ? 'Grade $_filterGrade' : 'Grade',
+      isActive: _filterGrade != null,
+      onTap: _showGradeFilter,
+    ),
+    if (_filterType != null || _filterGrade != null)
+      _FilterChip(
+        label: 'Clear',
+        isActive: false,
+        isClear: true,
+        onTap: () => setState(() {
+          _filterType = null;
+          _filterGrade = null;
+        }),
+      ),
+  ];
+
+  Widget _sortDropdown() {
+    return PopupMenuButton<String>(
       color: _bgElevated,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(8.r),
         side: BorderSide(color: _border),
       ),
       onSelected: (v) => setState(() => _sortBy = v),
       itemBuilder: (_) => [
-        _sortItem('name', 'Name (A–Z)'),
-        _sortItem('code', 'Subject Code'),
-        _sortItem('createdAt', 'Newest First'),
+        _menuItem('name',    'Sort: Name'),
+        _menuItem('dept',    'Sort: Department'),
+        _menuItem('periods', 'Sort: Periods'),
+        _menuItem('code',    'Sort: Code'),
       ],
       child: Container(
-        height: 44.h,
-        padding: EdgeInsets.symmetric(horizontal: 14.w),
+        height: 36.h,
+        padding: EdgeInsets.symmetric(horizontal: 12.w),
         decoration: BoxDecoration(
           color: _bgCard,
-          borderRadius: BorderRadius.circular(10.r),
+          borderRadius: BorderRadius.circular(8.r),
           border: Border.all(color: _border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.sort_rounded, color: _textSecondary, size: 16.sp),
-            SizedBox(width: 6.w),
+            Icon(Icons.sort_rounded, color: _textMuted, size: 14.sp),
+            SizedBox(width: 5.w),
             Text('Sort',
                 style: TextStyle(
-                    color: _textSecondary,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600)),
+                    color: _textSecondary, fontSize: 12.sp)),
+            Icon(Icons.arrow_drop_down,
+                color: _textMuted, size: 16.sp),
           ],
         ),
       ),
     );
   }
 
-  PopupMenuItem _sortItem(String value, String label) {
-    return PopupMenuItem(
-      value: value,
-      child: Text(label,
-          style: TextStyle(color: _textPrimary, fontSize: 13.sp)),
+  PopupMenuItem<String> _menuItem(String v, String label) => PopupMenuItem(
+    value: v,
+    child: Text(label,
+        style: TextStyle(color: _textPrimary, fontSize: 13.sp)),
+  );
+
+  Widget _inactiveToggle() {
+    return GestureDetector(
+      onTap: () => setState(() => _showInactive = !_showInactive),
+      child: Container(
+        height: 36.h,
+        padding: EdgeInsets.symmetric(horizontal: 12.w),
+        decoration: BoxDecoration(
+          color: _showInactive ? _primary.withOpacity(0.12) : _bgCard,
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(
+              color: _showInactive
+                  ? _primary.withOpacity(0.4)
+                  : _border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _showInactive
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              color: _showInactive ? _primary : _textMuted,
+              size: 14.sp,
+            ),
+            SizedBox(width: 5.w),
+            Text('Inactive',
+                style: TextStyle(
+                  color: _showInactive ? _primary : _textSecondary,
+                  fontSize: 12.sp,
+                )),
+          ],
+        ),
+      ),
     );
   }
 
-  // ── Body ──────────────────────────────────────────────────────────────────────
+  // ── Body ─────────────────────────────────────────────────────────────────────
   Widget _buildBody() {
-    return StreamBuilder(
-      stream: _subjectStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _shimmerGrid();
+    return StreamBuilder<QuerySnapshot>(
+      stream: _stream,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return _shimmer();
         }
-        if (snapshot.hasError) {
-          return _errorState(snapshot.error.toString());
-        }
-
-        final all = snapshot.data?.docs ?? [];
-        final filtered = _applyFilters(all);
-
-        if (all.isEmpty) {
-          return _emptyState(
-            icon: Icons.menu_book_outlined,
-            title: 'No subjects yet',
-            subtitle: 'Tap "+ Add Subject" to create your first subject.',
-          );
+        if (snap.hasError) {
+          return _centred(Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off_rounded, color: _red, size: 40.sp),
+              SizedBox(height: 10.h),
+              Text('Failed to load subjects',
+                  style: TextStyle(color: _textPrimary, fontSize: 15.sp)),
+            ],
+          ));
         }
 
-        if (filtered.isEmpty) {
-          return _emptyState(
-            icon: Icons.search_off_rounded,
-            title: 'No results found',
-            subtitle: 'Try a different search or filter.',
-          );
+        final all      = snap.data?.docs ?? [];
+        final filtered = _filtered(all);
+
+        if (all.isEmpty) return _emptyAll();
+        if (filtered.isEmpty) return _emptyFiltered();
+
+        // Group by department
+        final Map<String, List<QueryDocumentSnapshot>> grouped = {};
+        for (final doc in filtered) {
+          final dept =
+              (doc.data() as Map<String, dynamic>)['department'] as String? ??
+                  'Other';
+          grouped.putIfAbsent(dept, () => []).add(doc);
         }
 
-        return _viewMode == 'list'
-            ? _buildListView(filtered)
-            : _buildGridView(filtered);
+        return ListView(
+          padding: EdgeInsets.only(bottom: 32.h),
+          children: grouped.entries.map((entry) {
+            return _DeptSection(
+              deptName: entry.key,
+              docs: entry.value,
+              isMobile: widget.isMobile,
+              schoolId: widget.schoolId,
+              onEdit: (doc) => _openForm(doc),
+              onToggleActive: _toggleActive,
+              onDelete: _confirmDelete,
+              onTap: (doc) => _openDetailSheet(doc),
+            );
+          }).toList(),
+        );
       },
     );
   }
 
-  // ── Grid view ───────────────────────────────────────────────────────────────
-  Widget _buildGridView(List<QueryDocumentSnapshot> docs) {
-    final crossCount = widget.isMobile ? 1 : (widget.isTablet ? 2 : 3);
-    return GridView.builder(
-      padding: EdgeInsets.only(bottom: 24.h),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossCount,
-        crossAxisSpacing: 16.w,
-        mainAxisSpacing: 16.h,
-        childAspectRatio: widget.isMobile ? 1.4 : (widget.isTablet ? 1.35 : 1.55),
+  // ── Empty states ─────────────────────────────────────────────────────────────
+  Widget _emptyAll() {
+    return _centred(Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _emptyIllustration(),
+        SizedBox(height: 24.h),
+        Text('No subjects in the curriculum yet',
+            style: TextStyle(
+                color: _textPrimary,
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w700)),
+        SizedBox(height: 6.h),
+        Text(
+          'Add your first subject to start building\nthe academic curriculum.',
+          style: TextStyle(color: _textSecondary, fontSize: 13.sp),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: 24.h),
+        _addBtn(),
+      ],
+    ));
+  }
 
-      ),
-      itemCount: docs.length,
-      itemBuilder: (_, i) => _SubjectCard(
-        doc: docs[i],
-        schoolId: widget.schoolId,
-        onEdit: () => _openEditSubjectDialog(docs[i]),
-        onDelete: () => _confirmDelete(docs[i]),
+  Widget _emptyFiltered() {
+    return _centred(Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.search_off_rounded, color: _textMuted, size: 40.sp),
+        SizedBox(height: 14.h),
+        Text('No subjects match your filters',
+            style: TextStyle(
+                color: _textPrimary,
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 6.h),
+        Text('Try adjusting search or clearing filters.',
+            style: TextStyle(color: _textSecondary, fontSize: 12.sp)),
+      ],
+    ));
+  }
+
+  Widget _emptyIllustration() {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 90.w,
+          height: 90.w,
+          decoration: BoxDecoration(
+            color: _primary.withOpacity(0.06),
+            shape: BoxShape.circle,
+          ),
+        ),
+        Icon(Icons.menu_book_outlined, color: _primary, size: 44.sp),
+      ],
+    );
+  }
+
+  Widget _centred(Widget child) =>
+      Center(child: Padding(padding: EdgeInsets.all(32.w), child: child));
+
+  // ── Shimmer ──────────────────────────────────────────────────────────────────
+  Widget _shimmer() {
+    return Shimmer.fromColors(
+      baseColor: _bgCard,
+      highlightColor: _bgElevated,
+      child: ListView.builder(
+        itemCount: 3,
+        itemBuilder: (_, __) => Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          height: 180.h,
+          decoration: BoxDecoration(
+            color: _bgCard,
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+        ),
       ),
     );
   }
 
-  // ── List view ───────────────────────────────────────────────────────────────
-  Widget _buildListView(List<QueryDocumentSnapshot> docs) {
-    return ListView.separated(
-      padding: EdgeInsets.only(bottom: 24.h),
-      itemCount: docs.length,
-      separatorBuilder: (_, __) => SizedBox(height: 8.h),
-      itemBuilder: (_, i) => _SubjectListTile(
-        doc: docs[i],
-        schoolId: widget.schoolId,
-        onEdit: () => _openEditSubjectDialog(docs[i]),
-        onDelete: () => _confirmDelete(docs[i]),
+  // ── Filters ──────────────────────────────────────────────────────────────────
+  void _showTypeFilter() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _bgCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (_) => _BottomSheet(
+        title: 'Filter by type',
+        children: [
+          null, // "All"
+          'Core', 'Elective', 'Lab', 'Co-curricular',
+        ].map((t) {
+          final cfg = t == null ? null : _typeFor(t);
+          final isSelected = _filterType == t;
+          return ListTile(
+            leading: Icon(
+              cfg?.icon ?? Icons.apps_rounded,
+              color: cfg?.color ?? _textMuted,
+              size: 20.sp,
+            ),
+            title: Text(
+              t ?? 'All types',
+              style: TextStyle(
+                color: _textPrimary,
+                fontSize: 14.sp,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            trailing: isSelected
+                ? Icon(Icons.check_circle, color: _primary, size: 18.sp)
+                : null,
+            onTap: () {
+              setState(() => _filterType = t);
+              Navigator.pop(context);
+            },
+          );
+        }).toList(),
       ),
     );
   }
 
-  // ── Add / Edit dialog ──────────────────────────────────────────────────────
-  void _openAddSubjectDialog() => _openSubjectDialog(null);
-  void _openEditSubjectDialog(QueryDocumentSnapshot doc) =>
-      _openSubjectDialog(doc);
+  void _showGradeFilter() {
+    final grades = ['1','2','3','4','5','6','7','8','9','10','11','12'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _bgCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (_) => _BottomSheet(
+        title: 'Filter by grade',
+        children: [
+          null,
+          ...grades,
+        ].map((g) {
+          final isSelected = _filterGrade == g;
+          return ListTile(
+            title: Text(
+              g == null ? 'All grades' : 'Grade $g',
+              style: TextStyle(
+                color: _textPrimary,
+                fontSize: 14.sp,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            trailing: isSelected
+                ? Icon(Icons.check_circle, color: _primary, size: 18.sp)
+                : null,
+            onTap: () {
+              setState(() => _filterGrade = g);
+              Navigator.pop(context);
+            },
+          );
+        }).toList(),
+      ),
+    );
+  }
 
-  void _openSubjectDialog(QueryDocumentSnapshot? existing) {
+  // ── Actions ──────────────────────────────────────────────────────────────────
+  void _openForm(QueryDocumentSnapshot? existing) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withOpacity(0.65),
       builder: (_) => _SubjectFormDialog(
         schoolId: widget.schoolId,
         existing: existing,
@@ -661,184 +763,170 @@ class _SubjectsModuleState extends State<SubjectsModule>
     );
   }
 
-  // ── Delete confirmation ─────────────────────────────────────────────────────
+  void _openDetailSheet(QueryDocumentSnapshot doc) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SubjectDetailSheet(
+        doc: doc,
+        schoolId: widget.schoolId,
+        onEdit: () {
+          Navigator.pop(context);
+          _openForm(doc);
+        },
+      ),
+    );
+  }
+
+  Future<void> _toggleActive(QueryDocumentSnapshot doc) async {
+    final d = doc.data() as Map<String, dynamic>;
+    final current = d['isActive'] as bool? ?? true;
+    try {
+      await doc.reference.update({
+        'isActive': !current,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      widget.showSnackBar(
+          current ? 'Subject deactivated' : 'Subject activated');
+    } catch (e) {
+      widget.showSnackBar('Error: $e', isError: true);
+    }
+  }
+
   void _confirmDelete(QueryDocumentSnapshot doc) {
     final d = doc.data() as Map<String, dynamic>;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _bgCard,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.r)),
-        title: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(10.w),
-              decoration: BoxDecoration(
-                color: _accentRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(Icons.delete_outline,
-                  color: _accentRed, size: 22.sp),
-            ),
-            SizedBox(width: 12.w),
-            Text('Delete Subject?',
-                style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w700)),
-          ],
-        ),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+        title: Text('Delete subject?',
+            style: TextStyle(
+                color: _textPrimary,
+                fontSize: 17.sp,
+                fontWeight: FontWeight.w700)),
         content: Text(
-          'Are you sure you want to delete subject "${d['name']}" (${d['code']})? '
-              'This cannot be undone.',
+          'Permanently delete "${d['name']}"? This cannot be undone.',
           style: TextStyle(color: _textSecondary, fontSize: 13.sp),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Cancel',
-                style: TextStyle(color: _textSecondary, fontSize: 13.sp)),
+                style:
+                TextStyle(color: _textSecondary, fontSize: 13.sp)),
           ),
-          _primaryButton('Delete', () async {
-            Navigator.pop(context);
-            try {
-              await doc.reference.delete();
-              widget.showSnackBar('Subject deleted successfully');
-            } catch (e) {
-              widget.showSnackBar('Error: $e', isError: true);
-            }
-          }, color: _accentRed),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await doc.reference.delete();
+                widget.showSnackBar('Subject deleted');
+              } catch (e) {
+                widget.showSnackBar('Error: $e', isError: true);
+              }
+            },
+            child: Text('Delete',
+                style: TextStyle(
+                    color: _red,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700)),
+          ),
         ],
-      ),
-    );
-  }
-
-  // ── Empty / error / shimmer states ───────────────────────────────────────────
-  Widget _emptyState({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: EdgeInsets.all(28.w),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  _primary.withOpacity(0.15),
-                  _primaryLight.withOpacity(0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              border: Border.all(color: _primary.withOpacity(0.2)),
-            ),
-            child: Icon(icon, color: _primary, size: 52.sp),
-          ),
-          SizedBox(height: 22.h),
-          Text(
-            title,
-            style: TextStyle(
-              color: _textPrimary,
-              fontSize: 20.sp,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            subtitle,
-            style: TextStyle(color: _textSecondary, fontSize: 14.sp),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 28.h),
-          _primaryButton('+ Add First Subject', _openAddSubjectDialog),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorState(String error) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.cloud_off_rounded, color: _accentRed, size: 48.sp),
-          SizedBox(height: 12.h),
-          Text('Failed to load subjects',
-              style: TextStyle(
-                  color: _textPrimary,
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600)),
-          SizedBox(height: 4.h),
-          Text(error,
-              style: TextStyle(color: _textMuted, fontSize: 11.sp),
-              textAlign: TextAlign.center),
-        ],
-      ),
-    );
-  }
-
-  Widget _shimmerGrid() {
-    return GridView.builder(
-      padding: EdgeInsets.only(bottom: 24.h),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: widget.isMobile ? 1 : (widget.isTablet ? 2 : 3),
-        crossAxisSpacing: 16.w,
-        mainAxisSpacing: 16.h,
-        childAspectRatio: 1.25,
-      ),
-      itemCount: 6,
-      itemBuilder: (_, __) => Shimmer.fromColors(
-        baseColor: _bgCard,
-        highlightColor: _bgElevated,
-        child: Container(
-          decoration: BoxDecoration(
-            color: _bgCard,
-            borderRadius: BorderRadius.circular(16.r),
-          ),
-        ),
       ),
     );
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
-  Widget _primaryButton(String label, VoidCallback onPressed,
-      {Color? color}) {
-    return GestureDetector(
-      onTap: onPressed,
+  Widget _addBtn({bool fullWidth = false}) {
+    final btn = GestureDetector(
+      onTap: () => _openForm(null),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
+        width: fullWidth ? double.infinity : null,
+        padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 11.h),
         decoration: BoxDecoration(
-          gradient: color == null
-              ? const LinearGradient(
-            colors: [_primary, _primaryLight],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          )
-              : null,
-          color: color,
-          borderRadius: BorderRadius.circular(10.r),
+          gradient: const LinearGradient(colors: [_primary, _primaryLight]),
+          borderRadius: BorderRadius.circular(9.r),
           boxShadow: [
             BoxShadow(
-              color: (color ?? _primary).withOpacity(0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+                color: _primary.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4)),
           ],
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w700,
+        child: Row(
+          mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_rounded, color: Colors.white, size: 17.sp),
+            SizedBox(width: 6.w),
+            Text('Add Subject',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+    return btn;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _DeptTab — animated tab chip
+// ─────────────────────────────────────────────────────────────────────────────
+class _DeptTab extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+  final bool isSelected;
+  final TabController controller;
+  final int index;
+
+  const _DeptTab({
+    required this.label,
+    required this.color,
+    required this.icon,
+    required this.isSelected,
+    required this.controller,
+    required this.index,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => controller.animateTo(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: EdgeInsets.only(right: 6.w),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : const Color(0xFF151B2B),
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(
+            color: isSelected ? color.withOpacity(0.6) : const Color(0xFF2D3748),
+            width: isSelected ? 1.5 : 1,
           ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                color: isSelected ? color : const Color(0xFF64748B),
+                size: 13.sp),
+            SizedBox(width: 5.w),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : const Color(0xFF94A3B8),
+                fontSize: 12.sp,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -846,369 +934,616 @@ class _SubjectsModuleState extends State<SubjectsModule>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SubjectCard — grid card for a single subject
+// _FilterChip
 // ─────────────────────────────────────────────────────────────────────────────
-class _SubjectCard extends StatefulWidget {
-  final QueryDocumentSnapshot doc;
-  final String schoolId;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final bool isClear;
+  final VoidCallback onTap;
 
-  const _SubjectCard({
-    required this.doc,
-    required this.schoolId,
-    required this.onEdit,
-    required this.onDelete,
+  const _FilterChip({
+    required this.label,
+    required this.isActive,
+    this.isClear = false,
+    required this.onTap,
   });
 
   @override
-  State<_SubjectCard> createState() => _SubjectCardState();
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 34.h,
+        padding: EdgeInsets.symmetric(horizontal: 12.w),
+        decoration: BoxDecoration(
+          color: isClear
+              ? _red.withOpacity(0.08)
+              : isActive
+              ? _primary.withOpacity(0.12)
+              : _bgCard,
+          borderRadius: BorderRadius.circular(7.r),
+          border: Border.all(
+            color: isClear
+                ? _red.withOpacity(0.3)
+                : isActive
+                ? _primary.withOpacity(0.4)
+                : _border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!isClear) ...[
+              Icon(
+                isActive ? Icons.filter_list : Icons.filter_list_outlined,
+                color: isActive ? _primary : _textMuted,
+                size: 12.sp,
+              ),
+              SizedBox(width: 5.w),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: isClear
+                    ? _red
+                    : isActive
+                    ? _primary
+                    : _textSecondary,
+                fontSize: 12.sp,
+                fontWeight: isActive || isClear ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            if (isActive && !isClear) ...[
+              SizedBox(width: 4.w),
+              Icon(Icons.arrow_drop_down,
+                  color: _primary, size: 14.sp),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _SubjectCardState extends State<_SubjectCard> {
+// ─────────────────────────────────────────────────────────────────────────────
+// _DeptSection — one collapsible group of subjects by department
+// ─────────────────────────────────────────────────────────────────────────────
+class _DeptSection extends StatefulWidget {
+  final String deptName;
+  final List<QueryDocumentSnapshot> docs;
+  final bool isMobile;
+  final String schoolId;
+  final void Function(QueryDocumentSnapshot) onEdit;
+  final void Function(QueryDocumentSnapshot) onToggleActive;
+  final void Function(QueryDocumentSnapshot) onDelete;
+  final void Function(QueryDocumentSnapshot) onTap;
+
+  const _DeptSection({
+    required this.deptName,
+    required this.docs,
+    required this.isMobile,
+    required this.schoolId,
+    required this.onEdit,
+    required this.onToggleActive,
+    required this.onDelete,
+    required this.onTap,
+  });
+
+  @override
+  State<_DeptSection> createState() => _DeptSectionState();
+}
+
+class _DeptSectionState extends State<_DeptSection> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final dept  = _deptFor(widget.deptName);
+    final count = widget.docs.length;
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 16.h),
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          // ── Section header ──────────────────────────────────────────────────
+          GestureDetector(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: 18.w, vertical: 14.h),
+              decoration: BoxDecoration(
+                color: dept.color.withOpacity(0.05),
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(14.r),
+                  bottom:
+                  _expanded ? Radius.zero : Radius.circular(14.r),
+                ),
+                border: _expanded
+                    ? Border(
+                    bottom: BorderSide(color: _border))
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: dept.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Icon(dept.icon,
+                        color: dept.color, size: 16.sp),
+                  ),
+                  SizedBox(width: 12.w),
+                  Text(
+                    widget.deptName,
+                    style: TextStyle(
+                      color: _textPrimary,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 8.w, vertical: 3.h),
+                    decoration: BoxDecoration(
+                      color: dept.color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20.r),
+                    ),
+                    child: Text(
+                      '$count ${count == 1 ? 'subject' : 'subjects'}',
+                      style: TextStyle(
+                        color: dept.color,
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  AnimatedRotation(
+                    turns: _expanded ? 0 : -0.25,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: _textMuted, size: 20.sp),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Subject rows ────────────────────────────────────────────────────
+          if (_expanded)
+            widget.isMobile
+                ? Column(
+              children: widget.docs
+                  .map((doc) => _SubjectMobileCard(
+                doc: doc,
+                onEdit: () => widget.onEdit(doc),
+                onToggleActive: () =>
+                    widget.onToggleActive(doc),
+                onDelete: () => widget.onDelete(doc),
+                onTap: () => widget.onTap(doc),
+              ))
+                  .toList(),
+            )
+                : _SubjectTable(
+              docs: widget.docs,
+              onEdit: widget.onEdit,
+              onToggleActive: widget.onToggleActive,
+              onDelete: widget.onDelete,
+              onTap: widget.onTap,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SubjectTable — dense data table for desktop
+// ─────────────────────────────────────────────────────────────────────────────
+class _SubjectTable extends StatelessWidget {
+  final List<QueryDocumentSnapshot> docs;
+  final void Function(QueryDocumentSnapshot) onEdit;
+  final void Function(QueryDocumentSnapshot) onToggleActive;
+  final void Function(QueryDocumentSnapshot) onDelete;
+  final void Function(QueryDocumentSnapshot) onTap;
+
+  const _SubjectTable({
+    required this.docs,
+    required this.onEdit,
+    required this.onToggleActive,
+    required this.onDelete,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Table header
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
+          color: _bgElevated.withOpacity(0.5),
+          child: Row(
+            children: [
+              _th('Subject', flex: 3),
+              _th('Code',    flex: 2),
+              _th('Type',    flex: 2),
+              _th('Grades',  flex: 2),
+              _th('Periods/wk', flex: 2),
+              _th('Teacher', flex: 3),
+              _th('Status',  flex: 2),
+              SizedBox(width: 80.w),
+            ],
+          ),
+        ),
+        // Rows
+        ...docs.asMap().entries.map((entry) {
+          final i   = entry.key;
+          final doc = entry.value;
+          return _SubjectTableRow(
+            doc: doc,
+            isEven: i.isEven,
+            onEdit: () => onEdit(doc),
+            onToggleActive: () => onToggleActive(doc),
+            onDelete: () => onDelete(doc),
+            onTap: () => onTap(doc),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _th(String label, {int flex = 1}) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: _textMuted,
+          fontSize: 10.sp,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SubjectTableRow — single row in the desktop table
+// ─────────────────────────────────────────────────────────────────────────────
+class _SubjectTableRow extends StatefulWidget {
+  final QueryDocumentSnapshot doc;
+  final bool isEven;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleActive;
+  final VoidCallback onDelete;
+  final VoidCallback onTap;
+
+  const _SubjectTableRow({
+    required this.doc,
+    required this.isEven,
+    required this.onEdit,
+    required this.onToggleActive,
+    required this.onDelete,
+    required this.onTap,
+  });
+
+  @override
+  State<_SubjectTableRow> createState() => _SubjectTableRowState();
+}
+
+class _SubjectTableRowState extends State<_SubjectTableRow> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final d        = widget.doc.data() as Map<String, dynamic>;
-    final name     = d['name'] as String? ?? '';
-    final code     = d['code'] as String? ?? '';
-    final category = d['category'] as String? ?? 'Other';
-    final color    = _categoryColor(category);
-    final icon     = _iconForCategory(category, name);
-    final createdAt = d['createdAt'] as Timestamp?;
-    final dateStr  = createdAt != null
-        ? '${createdAt.toDate().day.toString().padLeft(2, '0')}/'
-        '${createdAt.toDate().month.toString().padLeft(2, '0')}/'
-        '${createdAt.toDate().year}'
-        : '—';
+    final name     = d['name']     as String? ?? '';
+    final code     = d['code']     as String? ?? '—';
+    final type     = d['type']     as String? ?? 'Core';
+    final grades   = List<String>.from(d['grades'] ?? []);
+    final periods  = d['weeklyPeriods'] as int? ?? 0;
+    final teacher  = d['assignedTeacherName'] as String? ?? '—';
+    final isActive = d['isActive']  as bool?   ?? true;
+    final dept     = _deptFor(d['department'] as String? ?? 'Other');
+    final typeCfg  = _typeFor(type);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit:  (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: _bgCard,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: _hovered ? color.withOpacity(0.55) : _border,
-            width: _hovered ? 1.5 : 1,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 13.h),
+          decoration: BoxDecoration(
+            color: _hovered
+                ? _bgHover
+                : widget.isEven
+                ? Colors.transparent
+                : _bgElevated.withOpacity(0.3),
+            border: Border(
+              bottom: BorderSide(color: _border.withOpacity(0.5)),
+            ),
           ),
-          boxShadow: _hovered
-              ? [BoxShadow(color: color.withOpacity(0.22),
-              blurRadius: 24, offset: const Offset(0, 8))]
-              : [BoxShadow(color: Colors.black.withOpacity(0.18),
-              blurRadius: 12, offset: const Offset(0, 3))],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16.r),
-          child: Stack(children: [
-            // ── Top accent bar ──────────────────────────────────────
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: Container(
-                height: 3.h,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [color, color.withOpacity(0.35)]),
+          child: Row(
+            children: [
+              // Subject name + icon
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 30.w,
+                      height: 30.w,
+                      decoration: BoxDecoration(
+                        color: dept.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(7.r),
+                      ),
+                      child: Icon(dept.icon,
+                          color: dept.color, size: 14.sp),
+                    ),
+                    SizedBox(width: 10.w),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          color: isActive
+                              ? _textPrimary
+                              : _textMuted,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
+                          decoration: isActive
+                              ? null
+                              : TextDecoration.lineThrough,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            Padding(
-              padding: EdgeInsets.fromLTRB(16.w, 18.h, 16.w, 16.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ── Icon + action buttons ───────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Subject icon badge
-                      Container(
-                        width: 50.w, height: 50.w,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            color.withOpacity(0.18),
-                            color.withOpacity(0.06),
-                          ], begin: Alignment.topLeft,
-                              end: Alignment.bottomRight),
-                          borderRadius: BorderRadius.circular(13.r),
-                          border: Border.all(
-                              color: color.withOpacity(0.3), width: 1.5),
-                        ),
-                        child: Center(
-                          child: Icon(icon, color: color, size: 22.sp),
-                        ),
-                      ),
-                      const Spacer(),
-                      // Edit + delete
-                      _iconBtn(Icons.edit_outlined, _primary, widget.onEdit),
-                      SizedBox(width: 6.w),
-                      _iconBtn(Icons.delete_outline, _accentRed, widget.onDelete),
-                    ],
+              // Code
+              Expanded(
+                flex: 2,
+                child: Text(
+                  code,
+                  style: TextStyle(
+                    color: _textMuted,
+                    fontSize: 12.sp,
+                    fontFamily: 'monospace',
                   ),
-                  SizedBox(height: 12.h),
-
-                  // ── Name ────────────────────────────────────────
-                  Text(
-                    name,
+                ),
+              ),
+              // Type badge
+              Expanded(
+                flex: 2,
+                child: _TypeBadge(type: type),
+              ),
+              // Grades
+              Expanded(
+                flex: 2,
+                child: grades.isEmpty
+                    ? Text('—',
                     style: TextStyle(
-                      color: _textPrimary,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  SizedBox(height: 4.h),
-
-                  // ── Category chip ────────────────────────────────
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 8.w, vertical: 3.h),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(icon, color: color, size: 10.sp),
-                      SizedBox(width: 4.w),
-                      Text(category,
-                          style: TextStyle(
-                              color: color, fontSize: 10.sp,
-                              fontWeight: FontWeight.w700)),
-                    ]),
-                  ),
-                  SizedBox(height: 12.h),
-                  Divider(color: _border, height: 1),
-                  SizedBox(height: 10.h),
-
-                  // ── Footer: code + date ─────────────────────────
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Code badge
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 8.w, vertical: 4.h),
-                        decoration: BoxDecoration(
-                          color: _accentGreen.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(6.r),
-                          border: Border.all(
-                              color: _accentGreen.withOpacity(0.2)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.qr_code_2_rounded,
-                              color: _accentGreen, size: 11.sp),
-                          SizedBox(width: 4.w),
-                          Text(code,
-                              style: TextStyle(
-                                  color: _accentGreen,
-                                  fontSize: 11.sp,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5)),
-                        ]),
+                        color: _textMuted, fontSize: 12.sp))
+                    : Wrap(
+                  spacing: 3.w,
+                  runSpacing: 3.h,
+                  children: grades.take(4).map((g) =>
+                      _GradeChip(grade: g)).toList(),
+                ),
+              ),
+              // Periods
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Icon(Icons.schedule_outlined,
+                        color: periods > 0 ? _primary : _textMuted,
+                        size: 12.sp),
+                    SizedBox(width: 4.w),
+                    Text(
+                      periods > 0 ? '$periods/wk' : '—',
+                      style: TextStyle(
+                        color: periods > 0
+                            ? _textSecondary
+                            : _textMuted,
+                        fontSize: 12.sp,
                       ),
-                      // Date added
-                      Text(
-                        'Added $dateStr',
-                        style: TextStyle(
-                            color: _textMuted, fontSize: 10.sp),
+                    ),
+                  ],
+                ),
+              ),
+              // Teacher
+              Expanded(
+                flex: 3,
+                child: Text(
+                  teacher,
+                  style: TextStyle(
+                      color: _textSecondary, fontSize: 12.sp),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Status
+              Expanded(
+                flex: 2,
+                child: _StatusBadge(isActive: isActive),
+              ),
+              // Actions
+              SizedBox(
+                width: 80.w,
+                child: AnimatedOpacity(
+                  opacity: _hovered ? 1 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _RowAction(
+                        icon: Icons.edit_outlined,
+                        color: _primary,
+                        onTap: widget.onEdit,
+                        tooltip: 'Edit',
+                      ),
+                      SizedBox(width: 4.w),
+                      _RowAction(
+                        icon: isActive
+                            ? Icons.toggle_on_outlined
+                            : Icons.toggle_off_outlined,
+                        color: isActive ? _green : _amber,
+                        onTap: widget.onToggleActive,
+                        tooltip: isActive ? 'Deactivate' : 'Activate',
+                      ),
+                      SizedBox(width: 4.w),
+                      _RowAction(
+                        icon: Icons.delete_outline,
+                        color: _red,
+                        onTap: widget.onDelete,
+                        tooltip: 'Delete',
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildStudentUsageRow(String subjectName) {
-    return StreamBuilder(
-      stream: FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('students')
-          .snapshots(),
-      builder: (context, snap) {
-        // Count students who have this subject in their subjects list
-        int count = 0;
-        if (snap.hasData) {
-          for (var doc in snap.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            final subjects = List.from(data['subjects'] ?? []);
-            if (subjects.contains(subjectName)) count++;
-          }
-        }
-
-        return Row(children: [
-          Icon(Icons.people_outline, color: _textMuted, size: 13.sp),
-          SizedBox(width: 5.w),
-          Text(
-            '$count students enrolled',
-            style: TextStyle(color: _textSecondary, fontSize: 11.sp),
-          ),
-          const Spacer(),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-            decoration: BoxDecoration(
-              color: count > 0 ? _accentGreen.withOpacity(0.1) : _bgElevated,
-              borderRadius: BorderRadius.circular(6.r),
-              border: Border.all(
-                  color: count > 0 ? _accentGreen.withOpacity(0.2) : _border),
-            ),
-            child: Text(
-              count > 0 ? 'Active' : 'Unused',
-              style: TextStyle(
-                color: count > 0 ? _accentGreen : _textMuted,
-                fontSize: 10.sp,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ]);
-      },
-    );
-  }
-
-  Widget _iconBtn(IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(7.w),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8.r),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Icon(icon, color: color, size: 15.sp),
-      ),
-    );
-  }
-
-  Widget _chip(String label, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(5.r),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontSize: 10.sp, fontWeight: FontWeight.w700)),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SubjectListTile — compact list row for list view
+// _SubjectMobileCard — card layout for phones
 // ─────────────────────────────────────────────────────────────────────────────
-class _SubjectListTile extends StatefulWidget {
+class _SubjectMobileCard extends StatelessWidget {
   final QueryDocumentSnapshot doc;
-  final String schoolId;
   final VoidCallback onEdit;
+  final VoidCallback onToggleActive;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
-  const _SubjectListTile({
+  const _SubjectMobileCard({
     required this.doc,
-    required this.schoolId,
     required this.onEdit,
+    required this.onToggleActive,
     required this.onDelete,
+    required this.onTap,
   });
 
   @override
-  State<_SubjectListTile> createState() => _SubjectListTileState();
-}
-
-class _SubjectListTileState extends State<_SubjectListTile> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final d = widget.doc.data() as Map<String, dynamic>;
-    final name = d['name'] as String? ?? '';
-    final code = d['code'] as String? ?? '';
-    final category = d['category'] as String? ?? 'Other';
-    final color = _categoryColor(category);
+    final d        = doc.data() as Map<String, dynamic>;
+    final name     = d['name']     as String? ?? '';
+    final code     = d['code']     as String? ?? '';
+    final type     = d['type']     as String? ?? 'Core';
+    final grades   = List<String>.from(d['grades'] ?? []);
+    final periods  = d['weeklyPeriods'] as int? ?? 0;
+    final teacher  = d['assignedTeacherName'] as String? ?? '';
+    final isActive = d['isActive']  as bool?   ?? true;
+    final dept     = _deptFor(d['department'] as String? ?? 'Other');
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: EdgeInsets.all(16.w),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 0, vertical: 1.h),
+        padding: EdgeInsets.all(14.w),
         decoration: BoxDecoration(
-          color: _hovered ? _bgElevated : _bgCard,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: _hovered ? color.withOpacity(0.4) : _border,
+          border: Border(
+            top: BorderSide(color: _border.withOpacity(0.5)),
           ),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Badge
             Container(
-              width: 48.w,
-              height: 48.w,
+              width: 36.w,
+              height: 36.w,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(color: color.withOpacity(0.25)),
+                color: dept.color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(9.r),
               ),
-              child: Center(
-                child: Text(
-                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+              child: Icon(dept.icon, color: dept.color, size: 16.sp),
             ),
-            SizedBox(width: 14.w),
-
-            // Info
+            SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text(name,
+                      Expanded(
+                        child: Text(
+                          name,
                           style: TextStyle(
-                              color: _textPrimary,
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.w700)),
-                      SizedBox(width: 8.w),
-                      _tinyChip(code, _textMuted),
-                      SizedBox(width: 4.w),
-                      _tinyChip(category, color),
+                            color: isActive ? _textPrimary : _textMuted,
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w700,
+                            decoration: isActive
+                                ? null
+                                : TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                      _StatusBadge(isActive: isActive),
                     ],
                   ),
                   SizedBox(height: 4.h),
-                  Text(
-                    'Auto-generated code: $code',
-                    style: TextStyle(color: _textSecondary, fontSize: 11.sp),
+                  Row(
+                    children: [
+                      if (code.isNotEmpty) ...[
+                        Text(code,
+                            style: TextStyle(
+                              color: _textMuted,
+                              fontSize: 11.sp,
+                              fontFamily: 'monospace',
+                            )),
+                        SizedBox(width: 8.w),
+                      ],
+                      _TypeBadge(type: type),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  Wrap(
+                    spacing: 4.w,
+                    runSpacing: 4.h,
+                    children: [
+                      if (periods > 0)
+                        _InfoPill(
+                            Icons.schedule_outlined, '$periods/wk', _primary),
+                      if (teacher.isNotEmpty)
+                        _InfoPill(Icons.person_outline, teacher, _textMuted),
+                      ...grades.take(3).map((g) => _GradeChip(grade: g)),
+                    ],
                   ),
                 ],
               ),
             ),
-
-            // Actions
-            Row(
+            Column(
               children: [
-                _iconBtn2(Icons.edit_outlined, _primary, widget.onEdit),
-                SizedBox(width: 6.w),
-                _iconBtn2(
-                    Icons.delete_outline, _accentRed, widget.onDelete),
+                _RowAction(
+                    icon: Icons.edit_outlined,
+                    color: _primary,
+                    onTap: onEdit,
+                    tooltip: 'Edit'),
+                SizedBox(height: 6.h),
+                _RowAction(
+                    icon: isActive
+                        ? Icons.toggle_on_outlined
+                        : Icons.toggle_off_outlined,
+                    color: isActive ? _green : _amber,
+                    onTap: onToggleActive,
+                    tooltip: isActive ? 'Deactivate' : 'Activate'),
               ],
             ),
           ],
@@ -1216,43 +1551,160 @@ class _SubjectListTileState extends State<_SubjectListTile> {
       ),
     );
   }
+}
 
-  Widget _tinyChip(String label, Color color) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Small reusable atoms
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TypeBadge extends StatelessWidget {
+  final String type;
+  const _TypeBadge({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final cfg = _typeFor(type);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: cfg.color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4.r),
+        border: Border.all(color: cfg.color.withOpacity(0.25)),
       ),
-      child: Text(label,
-          style: TextStyle(
-              color: color, fontSize: 9.sp, fontWeight: FontWeight.w700)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(cfg.icon, color: cfg.color, size: 10.sp),
+          SizedBox(width: 4.w),
+          Text(
+            cfg.label,
+            style: TextStyle(
+              color: cfg.color,
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _iconBtn2(IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(6.w),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(7.r),
+class _StatusBadge extends StatelessWidget {
+  final bool isActive;
+  const _StatusBadge({required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isActive ? _green : _textMuted;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 7.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(4.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5.w,
+            height: 5.w,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          SizedBox(width: 4.w),
+          Text(
+            isActive ? 'Active' : 'Inactive',
+            style: TextStyle(
+                color: color, fontSize: 10.sp, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GradeChip extends StatelessWidget {
+  final String grade;
+  const _GradeChip({required this.grade});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: _bgElevated,
+        borderRadius: BorderRadius.circular(4.r),
+        border: Border.all(color: _border),
+      ),
+      child: Text(
+        'G$grade',
+        style: TextStyle(
+          color: _textSecondary,
+          fontSize: 9.sp,
+          fontWeight: FontWeight.w700,
         ),
-        child: Icon(icon, color: color, size: 14.sp),
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _InfoPill(this.icon, this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 11.sp),
+        SizedBox(width: 3.w),
+        Text(label,
+            style: TextStyle(color: _textSecondary, fontSize: 11.sp)),
+      ],
+    );
+  }
+}
+
+class _RowAction extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final String tooltip;
+  const _RowAction(
+      {required this.icon,
+        required this.color,
+        required this.onTap,
+        required this.tooltip});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.all(6.w),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+          child: Icon(icon, color: color, size: 14.sp),
+        ),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SubjectFormDialog — Add / Edit subject
+// _SubjectFormDialog — Add / Edit
 // ─────────────────────────────────────────────────────────────────────────────
 class _SubjectFormDialog extends StatefulWidget {
   final String schoolId;
   final QueryDocumentSnapshot? existing;
   final void Function(String, {bool isError}) showSnackBar;
-
 
   const _SubjectFormDialog({
     required this.schoolId,
@@ -1267,116 +1719,87 @@ class _SubjectFormDialog extends StatefulWidget {
 class _SubjectFormDialogState extends State<_SubjectFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
+  final _nameCtrl    = TextEditingController();
+  final _codeCtrl    = TextEditingController();
+  final _descCtrl    = TextEditingController();
+  final _periodsCtrl = TextEditingController();
+  final _creditCtrl  = TextEditingController();
+  final _passCtrl    = TextEditingController();
+  final _totalCtrl   = TextEditingController();
 
+  String       _dept        = 'Science';
+  String       _type        = 'Core';
+  List<String> _grades      = [];
+  String       _teacherId   = '';
+  String       _teacherName = '';
+  bool         _isActive    = true;
+  bool         _isSaving    = false;
 
-
-  final _nameCtrl = TextEditingController();
-  String _category = 'Science';
-  String _autoCode = '';
-  bool _isSaving = false;
-  final _descCtrl = TextEditingController(); // ← ADD THIS
-
-  final List<String> _categoryOptions = [
-    'Science', 'Mathematics', 'Languages', 'Computer',
-    'Arts', 'Islamiat', 'Social Studies', 'Other'
-  ];
+  final _allGrades = ['1','2','3','4','5','6','7','8','9','10','11','12'];
 
   @override
   void initState() {
     super.initState();
     if (widget.existing != null) {
       final d = widget.existing!.data() as Map<String, dynamic>;
-      _nameCtrl.text = d['name'] ?? '';
-      _descCtrl.text = d['description'] ?? '';
-      _category = d['category'] ?? 'Science';
-      _autoCode = d['code'] ?? '';
-    } else {
-      _generateCode();
+      _nameCtrl.text    = d['name']         ?? '';
+      _codeCtrl.text    = d['code']         ?? '';
+      _descCtrl.text    = d['description']  ?? '';
+      _periodsCtrl.text = (d['weeklyPeriods'] ?? '').toString();
+      _creditCtrl.text  = (d['creditHours']   ?? '').toString();
+      _passCtrl.text    = (d['passMark']       ?? '').toString();
+      _totalCtrl.text   = (d['totalMarks']     ?? '').toString();
+      _dept             = d['department']   ?? 'Science';
+      _type             = d['type']         ?? 'Core';
+      _grades           = List<String>.from(d['grades'] ?? []);
+      _teacherId        = d['assignedTeacherId']   ?? '';
+      _teacherName      = d['assignedTeacherName'] ?? '';
+      _isActive         = d['isActive'] as bool? ?? true;
     }
   }
 
-  Future<void> _generateCode() async {
-    final subjectsRef = FirebaseFirestore.instance
-        .collection('schools')
-        .doc(widget.schoolId)
-        .collection('subjects');
-
-    // Extract letters only from category name (or subject name if category empty)
-    final src = (_category.isNotEmpty && _category != 'Other')
-        ? _category.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '')
-        : (_nameCtrl.text.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), ''));
-
-    // Base = first 3 letters of category (e.g. SCI, MAT, ENG, COM, ISL)
-    final base = src.length >= 3 ? src.substring(0, 3) : src.padRight(3, 'X');
-
-    // Find all existing codes starting with same base
-    final snapshot = await subjectsRef
-        .where('code', isGreaterThanOrEqualTo: base)
-        .where('code', isLessThan: '${base}z')
-        .get();
-
-    int maxSeq = 0;
-    for (final doc in snapshot.docs) {
-      final d = doc.data() as Map<String, dynamic>;
-      final code = (d['code'] ?? '').toString();
-      if (code.startsWith(base)) {
-        final seqStr = code.substring(base.length);
-        final seq = int.tryParse(seqStr) ?? 0;
-        if (seq > maxSeq) maxSeq = seq;
-      }
-    }
-
-    final nextSeq = (maxSeq + 1).toString().padLeft(2, '0');
-    if (mounted) setState(() => _autoCode = '$base$nextSeq');
-    // Examples: SCI01, SCI02, MAT01, ENG01, COM01, ISL01, ART01
+  @override
+  void dispose() {
+    for (final c in [
+      _nameCtrl, _codeCtrl, _descCtrl, _periodsCtrl,
+      _creditCtrl, _passCtrl, _totalCtrl
+    ]) { c.dispose(); }
+    super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
-
     try {
-      final name = _nameCtrl.text.trim();
-
-      // Check duplicate name
-      final dupCheck = await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .collection('subjects')
-          .where('name', isEqualTo: name)
-          .get();
-
-      final isDuplicate = dupCheck.docs.any((doc) =>
-      widget.existing == null || doc.id != widget.existing!.id);
-
-      if (isDuplicate) {
-        setState(() => _isSaving = false);
-        widget.showSnackBar(
-            'A subject named "$name" already exists.', isError: true);
-        return;
-      }
-
       final data = {
-        'name':        name,
-        'category':    _category,
-        'description': _descCtrl.text.trim(),
-        'updatedAt':   FieldValue.serverTimestamp(),
+        'name'               : _nameCtrl.text.trim(),
+        'code'               : _codeCtrl.text.trim().toUpperCase(),
+        'description'        : _descCtrl.text.trim(),
+        'department'         : _dept,
+        'type'               : _type,
+        'grades'             : _grades,
+        'weeklyPeriods'      : int.tryParse(_periodsCtrl.text) ?? 0,
+        'creditHours'        : int.tryParse(_creditCtrl.text)  ?? 0,
+        'passMark'           : int.tryParse(_passCtrl.text)    ?? 50,
+        'totalMarks'         : int.tryParse(_totalCtrl.text)   ?? 100,
+        'assignedTeacherId'  : _teacherId,
+        'assignedTeacherName': _teacherName,
+        'isActive'           : _isActive,
+        'updatedAt'          : FieldValue.serverTimestamp(),
       };
 
       if (widget.existing == null) {
-        data['code'] = _autoCode;
         data['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance
             .collection('schools')
             .doc(widget.schoolId)
             .collection('subjects')
             .add(data);
-        widget.showSnackBar('Subject "$name" created with code $_autoCode!');
+        widget.showSnackBar('Subject created!');
       } else {
         await widget.existing!.reference.update(data);
-        widget.showSnackBar('Subject updated successfully!');
+        widget.showSnackBar('Subject updated!');
       }
-
       if (mounted) Navigator.pop(context);
     } catch (e) {
       widget.showSnackBar('Error: $e', isError: true);
@@ -1386,81 +1809,83 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
   }
 
   @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 24.h),
+      insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
       child: Container(
-        width: 480.w,
-        constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85),
+        width: 600.w,
+        constraints:
+        BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
         decoration: BoxDecoration(
           color: _bgCard,
-          borderRadius: BorderRadius.circular(20.r),
+          borderRadius: BorderRadius.circular(18.r),
           border: Border.all(color: _border),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 40,
-              offset: const Offset(0, 16),
-            ),
-          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildDialogHeader(isEdit),
+            _dialogHeader(isEdit),
             Flexible(
               child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 24.h),
+                padding: EdgeInsets.fromLTRB(22.w, 4.h, 22.w, 22.h),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _sectionLabel('Subject Details'),
-                      SizedBox(height: 12.h),
-                      _nameField(),
                       SizedBox(height: 16.h),
-                      _categorySelector(),
-                      SizedBox(height: 20.h),
-                      SizedBox(height: 16.h),
-                      _labeledField(
-                        'Description (optional)',
-                        TextFormField(
-                          controller: _descCtrl,
-                          maxLines: 2,
-                          style: TextStyle(
-                              color: _textPrimary, fontSize: 13.sp),
-                          decoration: _inputDecoration(
-                            'e.g. Covers algebra, geometry for Class 9–10',
-                          ),
-                        ),
+                      _row2(
+                        _field('Subject name *', _nameCtrl,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Required'
+                                : null),
+                        _field('Subject code', _codeCtrl,
+                            hint: 'e.g. MATH-10'),
                       ),
-                      if (!isEdit) ...[
-                        _sectionLabel('Auto-Generated Code'),
-                        SizedBox(height: 12.h),
-                        _codeDisplay(),
-                        SizedBox(height: 4.h),
-                        Text(
-                          'Subject code is automatically generated and cannot be changed',
-                          style: TextStyle(
-                              color: _textMuted,
-                              fontSize: 10.sp,
-                              fontStyle: FontStyle.italic),
-                        ),
-                        SizedBox(height: 20.h),
-                      ],
+                      SizedBox(height: 14.h),
 
-                      _actionButtons(isEdit),
+                      // Department + Type
+                      _sLabel('Classification'),
+                      SizedBox(height: 10.h),
+                      _row2(_deptPicker(), _typePicker()),
+                      SizedBox(height: 14.h),
+
+                      // Grade selector
+                      _sLabel('Applicable grades'),
+                      SizedBox(height: 8.h),
+                      _gradeSelector(),
+                      SizedBox(height: 14.h),
+
+                      // Numerics
+                      _sLabel('Scheduling & marks'),
+                      SizedBox(height: 10.h),
+                      _row4(
+                        _numField('Periods/wk', _periodsCtrl),
+                        _numField('Credit hours', _creditCtrl),
+                        _numField('Pass mark', _passCtrl, hint: '50'),
+                        _numField('Total marks', _totalCtrl, hint: '100'),
+                      ),
+                      SizedBox(height: 14.h),
+
+                      // Teacher
+                      _sLabel('Assigned teacher'),
+                      SizedBox(height: 8.h),
+                      _teacherPicker(),
+                      SizedBox(height: 14.h),
+
+                      // Description
+                      _sLabel('Description'),
+                      SizedBox(height: 8.h),
+                      _textArea(),
+                      SizedBox(height: 14.h),
+
+                      // Active toggle
+                      _activeToggle(),
+                      SizedBox(height: 22.h),
+
+                      _actionRow(isEdit),
                     ],
                   ),
                 ),
@@ -1472,41 +1897,40 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
     );
   }
 
-  Widget _buildDialogHeader(bool isEdit) {
+  Widget _dialogHeader(bool isEdit) {
     return Container(
-      padding: EdgeInsets.fromLTRB(24.w, 20.h, 16.w, 20.h),
+      padding: EdgeInsets.fromLTRB(20.w, 16.h, 14.w, 16.h),
       decoration: BoxDecoration(
         color: _bgElevated,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
         border: Border(bottom: BorderSide(color: _border)),
       ),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(10.w),
+            padding: EdgeInsets.all(9.w),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [_primary, _primaryLight]),
-              borderRadius: BorderRadius.circular(10.r),
+              color: _teal.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(9.r),
             ),
-            child: Icon(Icons.menu_book_outlined,
-                color: Colors.white, size: 20.sp),
+            child: Icon(Icons.menu_book_outlined, color: _teal, size: 18.sp),
           ),
-          SizedBox(width: 14.w),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEdit ? 'Edit Subject' : 'Add New Subject',
+                  isEdit ? 'Edit subject' : 'Add subject to curriculum',
                   style: TextStyle(
-                    color: _textPrimary,
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
+                      color: _textPrimary,
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w800),
                 ),
                 Text(
-                  isEdit ? 'Update subject details' : 'Fill in the details below',
+                  isEdit
+                      ? 'Update the subject details below'
+                      : 'New subject will be added to the catalogue',
                   style: TextStyle(color: _textSecondary, fontSize: 11.sp),
                 ),
               ],
@@ -1518,10 +1942,10 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
               padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
                 color: _bgCard,
-                borderRadius: BorderRadius.circular(8.r),
+                borderRadius: BorderRadius.circular(7.r),
                 border: Border.all(color: _border),
               ),
-              child: Icon(Icons.close, color: _textMuted, size: 18.sp),
+              child: Icon(Icons.close, color: _textMuted, size: 16.sp),
             ),
           ),
         ],
@@ -1529,159 +1953,384 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
     );
   }
 
-  Widget _sectionLabel(String label) {
-    return Row(
+  Widget _sLabel(String t) => Text(t,
+      style: TextStyle(
+          color: _textSecondary,
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5));
+
+  Widget _row2(Widget a, Widget b) => Row(
+    children: [
+      Expanded(child: a),
+      SizedBox(width: 12.w),
+      Expanded(child: b),
+    ],
+  );
+
+  Widget _row4(Widget a, Widget b, Widget c, Widget d) => Row(
+    children: [
+      Expanded(child: a),
+      SizedBox(width: 8.w),
+      Expanded(child: b),
+      SizedBox(width: 8.w),
+      Expanded(child: c),
+      SizedBox(width: 8.w),
+      Expanded(child: d),
+    ],
+  );
+
+  Widget _field(String label, TextEditingController ctrl,
+      {String? hint, String? Function(String?)? validator}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 3.w,
-          height: 14.h,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [_primary, _primaryLight],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter),
-            borderRadius: BorderRadius.circular(2.r),
-          ),
+        Text(label,
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 5.h),
+        TextFormField(
+          controller: ctrl,
+          validator: validator,
+          style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+          decoration: _dec(hint ?? label.replaceAll(' *', '')),
         ),
-        SizedBox(width: 8.w),
-        Text(
-          label,
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: 13.sp,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
+      ],
+    );
+  }
+
+  Widget _numField(String label, TextEditingController ctrl,
+      {String? hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 5.h),
+        TextFormField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+          decoration: _dec(hint ?? '0'),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _dec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: _textMuted, fontSize: 12.sp),
+    filled: true,
+    fillColor: _bgElevated,
+    contentPadding:
+    EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8.r),
+      borderSide: BorderSide(color: _border),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8.r),
+      borderSide: BorderSide(color: _border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8.r),
+      borderSide: const BorderSide(color: _teal, width: 1.5),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8.r),
+      borderSide: const BorderSide(color: _red),
+    ),
+  );
+
+  Widget _deptPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Department',
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 5.h),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: _border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _dept,
+              isExpanded: true,
+              dropdownColor: _bgElevated,
+              style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+              items: _departments
+                  .map((d) => DropdownMenuItem(
+                value: d.name,
+                child: Row(
+                  children: [
+                    Icon(d.icon, color: d.color, size: 14.sp),
+                    SizedBox(width: 8.w),
+                    Text(d.name,
+                        style: TextStyle(
+                            color: _textPrimary, fontSize: 13.sp)),
+                  ],
+                ),
+              ))
+                  .toList(),
+              onChanged: (v) => setState(() => _dept = v!),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _nameField() {
-    return _labeledField(
-      'Subject Name *',
-      TextFormField(
-        controller: _nameCtrl,
-        style: TextStyle(color: _textPrimary, fontSize: 13.sp),
-        textCapitalization: TextCapitalization.words,
-        validator: (v) {
-          if (v == null || v.trim().isEmpty) return 'Required';
-          return null;
-        },
-        decoration: _inputDecoration('e.g. Mathematics, Physics, English'),
-      ),
-    );
-  }
-
-  Widget _categorySelector() {
-    return _labeledField(
-      'Category *',
-      Wrap(
-        spacing: 8.w,
-        runSpacing: 8.h,
-        children: _categoryOptions.map((cat) {
-          final isSelected = _category == cat;
-          final color = _categoryColor(cat);
-          return GestureDetector(
-            onTap: () {
-              setState(() => _category = cat);
-              // Regenerate code when category changes (for new subjects)
-              if (widget.existing == null) _generateCode();
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-              decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.15) : _bgElevated,
-                borderRadius: BorderRadius.circular(8.r),
-                border: Border.all(
-                  color: isSelected ? color : _border,
-                  width: isSelected ? 1.5 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [BoxShadow(
-                    color: color.withOpacity(0.25),
-                    blurRadius: 8, offset: const Offset(0, 3))]
-                    : null,
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(
-                  _iconForCategory(cat, ''),
-                  color: isSelected ? color : _textMuted,
-                  size: 14.sp,
-                ),
-                SizedBox(width: 5.w),
-                Text(
-                  cat,
-                  style: TextStyle(
-                    color: isSelected ? color : _textSecondary,
-                    fontSize: 12.sp,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+  Widget _typePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Subject type',
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600)),
+        SizedBox(height: 5.h),
+        Row(
+          children: _typeConfigs.keys.map((t) {
+            final cfg      = _typeFor(t);
+            final selected = _type == t;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _type = t),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: EdgeInsets.only(right: t != 'Co-curricular' ? 4.w : 0),
+                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? cfg.color.withOpacity(0.12)
+                        : _bgElevated,
+                    borderRadius: BorderRadius.circular(7.r),
+                    border: Border.all(
+                      color: selected
+                          ? cfg.color.withOpacity(0.5)
+                          : _border,
+                      width: selected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(cfg.icon,
+                          color: selected ? cfg.color : _textMuted,
+                          size: 14.sp),
+                      SizedBox(height: 3.h),
+                      Text(
+                        t == 'Co-curricular' ? 'Co-curr.' : t,
+                        style: TextStyle(
+                          color: selected ? cfg.color : _textMuted,
+                          fontSize: 9.sp,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
                 ),
-              ]),
-            ),
-          );
-        }).toList(),
-      ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
+  Widget _gradeSelector() {
+    return Wrap(
+      spacing: 6.w,
+      runSpacing: 6.h,
+      children: _allGrades.map((g) {
+        final sel = _grades.contains(g);
+        return GestureDetector(
+          onTap: () => setState(
+                  () => sel ? _grades.remove(g) : _grades.add(g)),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: 38.w,
+            height: 34.h,
+            decoration: BoxDecoration(
+              color: sel ? _teal.withOpacity(0.15) : _bgElevated,
+              borderRadius: BorderRadius.circular(6.r),
+              border: Border.all(
+                color: sel ? _teal.withOpacity(0.6) : _border,
+                width: sel ? 1.5 : 1,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                g,
+                style: TextStyle(
+                  color: sel ? _teal : _textSecondary,
+                  fontSize: 12.sp,
+                  fontWeight: sel ? FontWeight.w800 : FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
-  Widget _codeDisplay() {
+  Widget _teacherPicker() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schools')
+          .doc(widget.schoolId)
+          .collection('teachers')
+          .where('status', isEqualTo: 'active')
+          .snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData) {
+          return Container(
+            height: 44.h,
+            decoration: BoxDecoration(
+              color: _bgElevated,
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: _border),
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 16.w,
+                height: 16.w,
+                child: CircularProgressIndicator(
+                    color: _teal, strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        final teachers = snap.data!.docs;
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: _bgElevated,
+            borderRadius: BorderRadius.circular(8.r),
+            border: Border.all(color: _border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _teacherId.isEmpty ? null : _teacherId,
+              isExpanded: true,
+              dropdownColor: _bgElevated,
+              hint: Text('No teacher assigned',
+                  style: TextStyle(color: _textMuted, fontSize: 13.sp)),
+              items: [
+                DropdownMenuItem<String>(
+                  value: '',
+                  child: Text('None',
+                      style:
+                      TextStyle(color: _textSecondary, fontSize: 13.sp)),
+                ),
+                ...teachers.map((t) {
+                  final td = t.data() as Map<String, dynamic>;
+                  return DropdownMenuItem<String>(
+                    value: t.id,
+                    child: Text(td['name'] ?? '',
+                        style: TextStyle(
+                            color: _textPrimary, fontSize: 13.sp)),
+                  );
+                }),
+              ],
+              onChanged: (v) => setState(() {
+                _teacherId = v ?? '';
+                if (v == null || v.isEmpty) {
+                  _teacherName = '';
+                } else {
+                  final match =
+                  teachers.firstWhere((t) => t.id == v);
+                  final td = match.data() as Map<String, dynamic>;
+                  _teacherName = td['name'] ?? '';
+                }
+              }),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _textArea() {
+    return TextFormField(
+      controller: _descCtrl,
+      maxLines: 3,
+      style: TextStyle(color: _textPrimary, fontSize: 13.sp),
+      decoration: _dec('Brief description of what this subject covers…'),
+    );
+  }
+
+  Widget _activeToggle() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
       decoration: BoxDecoration(
         color: _bgElevated,
-        borderRadius: BorderRadius.circular(10.r),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: _border),
       ),
       child: Row(
         children: [
-          Icon(Icons.qr_code_rounded, color: _accentGreen, size: 18.sp),
-          SizedBox(width: 12.w),
-          Text(
-            _autoCode.isEmpty ? 'Generating...' : _autoCode,
-            style: TextStyle(
-              color: _accentGreen,
-              fontSize: 15.sp,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+          Icon(
+            _isActive ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: _isActive ? _green : _textMuted,
+            size: 16.sp,
+          ),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Subject active',
+                    style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w600)),
+                Text('Inactive subjects are hidden from timetables',
+                    style:
+                    TextStyle(color: _textMuted, fontSize: 11.sp)),
+              ],
             ),
           ),
-          const Spacer(),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
-            decoration: BoxDecoration(
-              color: _accentGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6.r),
-              border: Border.all(color: _accentGreen.withOpacity(0.2)),
-            ),
-            child: Text(
-              "AUTO",
-              style: TextStyle(
-                color: _accentGreen,
-                fontSize: 9.sp,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          Switch(
+            value: _isActive,
+            onChanged: (v) => setState(() => _isActive = v),
+            activeColor: _green,
+            activeTrackColor: _green.withOpacity(0.25),
+            inactiveTrackColor: _bgCard,
+            inactiveThumbColor: _textMuted,
           ),
         ],
       ),
     );
   }
 
-  Widget _actionButtons(bool isEdit) {
+  Widget _actionRow(bool isEdit) {
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 14.h),
+              padding: EdgeInsets.symmetric(vertical: 13.h),
               decoration: BoxDecoration(
                 color: _bgElevated,
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(9.r),
                 border: Border.all(color: _border),
               ),
               child: Center(
@@ -1694,44 +2343,41 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
             ),
           ),
         ),
-        SizedBox(width: 12.w),
+        SizedBox(width: 10.w),
         Expanded(
           flex: 2,
           child: GestureDetector(
             onTap: _isSaving ? null : _save,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(vertical: 14.h),
+              padding: EdgeInsets.symmetric(vertical: 13.h),
               decoration: BoxDecoration(
                 gradient: _isSaving
                     ? null
                     : const LinearGradient(
-                  colors: [_primary, _primaryLight],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
+                    colors: [Color(0xFF14B8A6), Color(0xFF6366F1)]),
                 color: _isSaving ? _bgElevated : null,
-                borderRadius: BorderRadius.circular(10.r),
+                borderRadius: BorderRadius.circular(9.r),
                 boxShadow: _isSaving
                     ? []
                     : [
                   BoxShadow(
-                    color: _primary.withOpacity(0.3),
-                    blurRadius: 14,
+                    color: _teal.withOpacity(0.3),
+                    blurRadius: 12,
                     offset: const Offset(0, 4),
-                  ),
+                  )
                 ],
               ),
               child: Center(
                 child: _isSaving
                     ? SizedBox(
-                  width: 20.w,
-                  height: 20.w,
+                  width: 18.w,
+                  height: 18.w,
                   child: const CircularProgressIndicator(
                       color: Colors.white, strokeWidth: 2),
                 )
                     : Text(
-                  isEdit ? 'Update Subject' : 'Create Subject',
+                  isEdit ? 'Save changes' : 'Add to curriculum',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14.sp,
@@ -1745,46 +2391,296 @@ class _SubjectFormDialogState extends State<_SubjectFormDialog> {
       ],
     );
   }
+}
 
-  Widget _labeledField(String label, Widget field) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: TextStyle(
-                color: _textSecondary,
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600)),
-        SizedBox(height: 6.h),
-        field,
-      ],
+// ─────────────────────────────────────────────────────────────────────────────
+// _SubjectDetailSheet
+// ─────────────────────────────────────────────────────────────────────────────
+class _SubjectDetailSheet extends StatelessWidget {
+  final QueryDocumentSnapshot doc;
+  final String schoolId;
+  final VoidCallback onEdit;
+
+  const _SubjectDetailSheet({
+    required this.doc,
+    required this.schoolId,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final d        = doc.data() as Map<String, dynamic>;
+    final name     = d['name']        as String? ?? '';
+    final code     = d['code']        as String? ?? '';
+    final desc     = d['description'] as String? ?? '';
+    final dept     = _deptFor(d['department'] as String? ?? 'Other');
+    final type     = d['type']        as String? ?? 'Core';
+    final grades   = List<String>.from(d['grades']  ?? []);
+    final periods  = d['weeklyPeriods'] as int? ?? 0;
+    final credits  = d['creditHours']   as int? ?? 0;
+    final passMark = d['passMark']      as int? ?? 0;
+    final total    = d['totalMarks']    as int? ?? 0;
+    final teacher  = d['assignedTeacherName'] as String? ?? '';
+    final isActive = d['isActive'] as bool? ?? true;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: _bgCard,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: EdgeInsets.only(top: 10.h),
+            width: 36.w,
+            height: 3.h,
+            decoration: BoxDecoration(
+              color: _border,
+              borderRadius: BorderRadius.circular(2.r),
+            ),
+          ),
+          SizedBox(height: 14.h),
+          // Header
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: dept.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: dept.color.withOpacity(0.25)),
+                  ),
+                  child: Icon(dept.icon, color: dept.color, size: 22.sp),
+                ),
+                SizedBox(width: 14.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(name,
+                              style: TextStyle(
+                                  color: _textPrimary,
+                                  fontSize: 17.sp,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(width: 8.w),
+                          _StatusBadge(isActive: isActive),
+                        ],
+                      ),
+                      SizedBox(height: 3.h),
+                      Row(
+                        children: [
+                          if (code.isNotEmpty) ...[
+                            Text(code,
+                                style: TextStyle(
+                                  color: _textMuted,
+                                  fontSize: 12.sp,
+                                  fontFamily: 'monospace',
+                                )),
+                            SizedBox(width: 8.w),
+                          ],
+                          _TypeBadge(type: type),
+                          SizedBox(width: 6.w),
+                          Text(dept.name,
+                              style: TextStyle(
+                                  color: _textSecondary, fontSize: 12.sp)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onEdit,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 14.w, vertical: 8.h),
+                    decoration: BoxDecoration(
+                      color: _teal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(color: _teal.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit_outlined,
+                            color: _teal, size: 14.sp),
+                        SizedBox(width: 5.w),
+                        Text('Edit',
+                            style: TextStyle(
+                                color: _teal,
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16.h),
+          Divider(color: _border, height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stats row
+                  Row(
+                    children: [
+                      _statCard('Periods/wk', '$periods', Icons.schedule_outlined, _primary),
+                      SizedBox(width: 10.w),
+                      _statCard('Credits', '$credits', Icons.stars_outlined, _teal),
+                      SizedBox(width: 10.w),
+                      _statCard('Pass mark', '$passMark/$total', Icons.grade_outlined, _amber),
+                    ],
+                  ),
+                  SizedBox(height: 18.h),
+
+                  if (teacher.isNotEmpty) ...[
+                    _detailRow(Icons.person_outlined, 'Teacher', teacher),
+                    SizedBox(height: 10.h),
+                  ],
+
+                  if (grades.isNotEmpty) ...[
+                    _detailRow(
+                      Icons.school_outlined,
+                      'Taught in grades',
+                      '',
+                      trailing: Wrap(
+                        spacing: 5.w,
+                        runSpacing: 5.h,
+                        children: grades
+                            .map((g) => _GradeChip(grade: g))
+                            .toList(),
+                      ),
+                    ),
+                    SizedBox(height: 10.h),
+                  ],
+
+                  if (desc.isNotEmpty) ...[
+                    SizedBox(height: 4.h),
+                    Text('Description',
+                        style: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w700)),
+                    SizedBox(height: 6.h),
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(14.w),
+                      decoration: BoxDecoration(
+                        color: _bgElevated,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: _border),
+                      ),
+                      child: Text(desc,
+                          style: TextStyle(
+                              color: _textSecondary, fontSize: 13.sp,
+                              height: 1.6)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: _textMuted, fontSize: 13.sp),
-      filled: true,
-      fillColor: _bgElevated,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: BorderSide(color: _border),
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(10.r),
+          border: Border.all(color: color.withOpacity(0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 16.sp),
+            SizedBox(height: 8.h),
+            Text(value,
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w800)),
+            Text(label,
+                style:
+                TextStyle(color: _textSecondary, fontSize: 11.sp)),
+          ],
+        ),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: BorderSide(color: _border),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value,
+      {Widget? trailing}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: _textMuted, size: 15.sp),
+        SizedBox(width: 10.w),
+        Text('$label: ',
+            style: TextStyle(
+                color: _textSecondary,
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600)),
+        if (trailing != null) Expanded(child: trailing)
+        else Expanded(
+          child: Text(value,
+              style: TextStyle(color: _textPrimary, fontSize: 13.sp)),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _BottomSheet — generic bottom sheet scaffold
+// ─────────────────────────────────────────────────────────────────────────────
+class _BottomSheet extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _BottomSheet({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            margin: EdgeInsets.only(top: 10.h),
+            width: 36.w,
+            height: 3.h,
+            decoration: BoxDecoration(
+                color: _border, borderRadius: BorderRadius.circular(2.r)),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(20.w, 14.h, 20.w, 6.h),
+            child: Text(title,
+                style: TextStyle(
+                    color: _textPrimary,
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Divider(color: _border),
+          ...children,
+          SizedBox(height: 12.h),
+        ],
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: const BorderSide(color: _primary, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.r),
-        borderSide: const BorderSide(color: _accentRed),
-      ),
-      contentPadding:
-      EdgeInsets.symmetric(horizontal: 14.w, vertical: 13.h),
     );
   }
 }
